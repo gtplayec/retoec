@@ -1,78 +1,56 @@
-
-export interface DownloadRecord {
-  installerId: string;
-  installerTitle: string;
-  date: string;
-}
-
-export interface SurveyRecord {
-  surveyId: string;
-  question: string;
-  date: string;
-  entryNumber: number; // Nuevo campo para el número del 1 al 15000
-}
+export type Zone = 'Santo Domingo' | 'La Concordia';
 
 export interface User {
   id: string;
-  name: string;
-  surname: string;
+  firstName: string;
+  lastName: string;
   age: number;
   phone: string;
+  zone: Zone;
   sector: string;
-  email: string;
-  password?: string;
-  role: 'user' | 'admin'; 
-  registeredAt: string;   
-  lastLogin: string;      
-  isVerified: boolean;
-  hasVotedCurrentWeek: boolean;
-  downloadHistory: DownloadRecord[];
-  surveyHistory: SurveyRecord[];
-}
-
-export interface Installer {
-  id: string;
-  title: string;
-  version: string;
-  description: string;
-  season: string;
-  size: string;
-  downloadUrl: string;
-  icon: string;
+  email: string; // Used for unique ID mainly
+  role: 'user' | 'admin';
+  downloadHistory: string[];
+  surveyHistory: string[]; // IDs of surveys taken
+  ticketNumber?: number; // Last ticket number generated
 }
 
 export interface SurveyOption {
   id: string;
-  text: string;
+  label: string; // Name of candidate or option text
+  imageUrl?: string; // Base64 or URL
   votes: number;
-  image?: string; 
 }
 
 export interface Survey {
   id: string;
-  category: 'Alcalde/sa' | 'Prefecto/a' | 'Obras Prioritarias' | 'Nacionales';
-  question: string;
+  title: string;
+  category: 'Alcalde' | 'Prefecto' | 'Obras' | 'Nacional';
   options: SurveyOption[];
-  isActive: boolean;
-  week: number;
+  active: boolean;
 }
 
 export interface Prize {
   id: string;
   name: string;
-  image: string;
-  winner?: string;
-  type: 'Tecnología' | 'Orden de Compra' | 'Descuento';
+  description: string;
+  image?: string;
 }
 
 export interface Winner {
-  userName: string;
+  id: string;
   prizeName: string;
+  winnerName: string;
+  date: string;
+  ticketNumber: number;
 }
 
-export interface PastDraw {
+export interface AppInstaller {
   id: string;
-  week: number;
-  date: string;
-  winners: Winner[];
+  name: string;
+  version: string;
+  category: 'Movies' | 'Music' | 'Games' | 'Tutorial';
+  warningText?: string;
+  downloadLink?: string;
+  buttonText: string;
 }

@@ -1,765 +1,251 @@
-
 import React, { useState, useEffect, useRef } from 'react';
-import { HashRouter, Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
-import emailjs from '@emailjs/browser';
-import * as XLSX from 'xlsx';
+import * as emailjs from '@emailjs/browser';
 import { 
-  Download, 
-  Trophy, 
-  Vote, 
-  LogOut, 
-  Menu, 
-  X, 
-  CheckCircle, 
-  Lock, 
-  User as UserIcon,
-  ChevronRight,
-  Gift,
-  Search,
-  Loader2,
-  Settings,
-  Calendar,
-  History,
-  Trash2,
-  Save,
-  ChevronDown,
-  ChevronUp,
-  Film,
-  Music,
-  Gamepad2,
-  BookOpen,
-  ArrowLeft,
-  Building2,
-  Map,
-  HardHat,
-  Flag,
-  Mail,
-  Send,
-  Shield,
-  Users,
-  Database,
-  Eye,
-  FileSpreadsheet,
-  KeyRound,
-  AlertCircle,
-  UserPlus,
-  FileText,
-  Edit,
-  Plus,
-  MinusCircle,
-  ImageIcon,
-  Upload,
-  Sparkles,
-  BarChart as BarChartIcon,
-  PieChart as PieChartIcon,
-  AlertTriangle
+  User, Survey, SurveyOption, Winner, Zone, AppInstaller, Prize 
+} from './types';
+import { LOCATIONS, INITIAL_PRIZES, INSTALLERS, AppLogo } from './constants';
+import { storageService } from './services/storage';
+import { 
+  LogOut, User as UserIcon, Download, Trophy, 
+  Vote, Settings, Trash2, AlertTriangle, FileText, Menu, X, ArrowLeft, Star, Gift, Plus, Image as ImageIcon, Mail, CheckCircle, Loader2
 } from 'lucide-react';
-import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer,
-  Cell
-} from 'recharts';
 
-import { User, Installer, Survey, PastDraw, Prize, SurveyOption, DownloadRecord, SurveyRecord } from './types';
-import { 
-  MOCK_INSTALLERS, 
-  INITIAL_PRIZES, 
-  MOCK_SURVEYS, 
-  PAST_DRAWS, 
-  ZONES 
-} from './constants';
-import { Logo } from './components/Logo';
-import { Button } from './components/Button';
-import { generateWeeklySurvey } from './services/geminiService';
+// --- View Components ---
 
-// --- Services Helper for "Mock Database" ---
-const DB_KEY = 'reto33_master_db';
-const SURVEYS_KEY = 'reto33_surveys';
-
-const getMasterDB = (): User[] => {
-  const data = localStorage.getItem(DB_KEY);
-  return data ? JSON.parse(data) : [];
-};
-
-const saveToMasterDB = (user: User) => {
-  const db = getMasterDB();
-  const existingIndex = db.findIndex(u => u.email === user.email);
+// 1. Auth Component
+const AuthView: React.FC<{ onLogin: (user: User) => void }> = ({ onLogin }) => {
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   
-  if (existingIndex >= 0) {
-    db[existingIndex] = user;
-  } else {
-    db.push(user);
-  }
-  localStorage.setItem(DB_KEY, JSON.stringify(db));
-};
-
-const removeFromMasterDB = (userId: string) => {
-  const db = getMasterDB().filter(u => u.id !== userId);
-  localStorage.setItem(DB_KEY, JSON.stringify(db));
-};
-
-// --- Layout Components ---
-
-const AuthLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <div className="min-h-screen bg-reto-light flex flex-col items-center justify-center p-4">
-    <div className="mb-8 scale-110">
-      <Link to="/" className="block hover:opacity-90 transition-opacity">
-        <Logo size="lg" />
-      </Link>
-    </div>
-    <div className="w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden p-8 border-t-4 border-reto-pink">
-      {children}
-    </div>
-    <div className="mt-8 text-center text-sm text-gray-500 space-y-2">
-      <p>&copy; {new Date().getFullYear()} Reto 33. Todos los derechos reservados.</p>
-      <Link to="/privacy" className="text-reto-navy hover:underline font-medium">
-        Políticas de Privacidad y Uso de Datos
-      </Link>
-    </div>
-  </div>
-);
-
-const MainLayout: React.FC<{ children: React.ReactNode; user: User | null; onLogout: () => void }> = ({ children, user, onLogout }) => {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const location = useLocation();
-
-  const isAdmin = user?.role === 'admin';
-  const logoLink = isAdmin ? '/admin' : '/dashboard';
-
-  const NavItem = ({ to, icon: Icon, label, highlight = false }: { to: string; icon: any; label: string, highlight?: boolean }) => {
-    const isActive = location.pathname === to;
-    return (
-      <Link
-        to={to}
-        onClick={() => setIsSidebarOpen(false)}
-        className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
-          isActive 
-            ? 'bg-reto-navy text-white' 
-            : highlight 
-              ? 'bg-red-50 text-red-600 hover:bg-red-100'
-              : 'text-gray-600 hover:bg-gray-100 hover:text-reto-navy'
-        }`}
-      >
-        <Icon size={20} className={isActive ? 'text-reto-gold' : ''} />
-        <span className="font-medium">{label}</span>
-      </Link>
-    );
-  };
-
-  return (
-    <div className="min-h-screen bg-reto-light flex">
-      {/* Mobile Sidebar Overlay */}
-      {isSidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
-          onClick={() => setIsSidebarOpen(false)}
-        />
-      )}
-
-      {/* Sidebar */}
-      <aside 
-        className={`fixed lg:sticky top-0 left-0 h-screen w-64 bg-white shadow-lg z-50 transform transition-transform duration-300 ease-in-out ${
-          isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
-        }`}
-      >
-        <div className="h-full flex flex-col">
-          <div className="p-6 flex items-center justify-center border-b border-gray-100">
-            <Link to={logoLink} className="hover:opacity-90 transition-opacity">
-              <Logo size="sm" />
-            </Link>
-          </div>
-
-          <div className="p-4">
-            <div className="flex items-center space-x-3 mb-6 p-3 bg-blue-50 rounded-lg">
-              <div className="w-10 h-10 rounded-full bg-reto-navy text-white flex items-center justify-center font-bold">
-                {user?.name.charAt(0)}{user?.surname.charAt(0)}
-              </div>
-              <div className="overflow-hidden">
-                <p className="text-sm font-bold text-gray-900 truncate">{user?.name} {isAdmin && '👑'}</p>
-                <p className="text-xs text-gray-500 truncate">{isAdmin ? 'Administrador' : user?.sector}</p>
-              </div>
-            </div>
-
-            <nav className="space-y-2">
-              <NavItem to="/dashboard" icon={UserIcon} label="Mi Panel" />
-              
-              {isAdmin && (
-                <div className="py-2">
-                  <p className="px-4 text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Administración</p>
-                  <NavItem to="/admin" icon={Shield} label="Panel de Control" highlight />
-                </div>
-              )}
-
-              <p className="px-4 text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 mt-4">Comunidad</p>
-              <NavItem to="/profile" icon={Settings} label="Mi Perfil" />
-              <NavItem to="/downloads" icon={Download} label="Descargas" />
-              <NavItem to="/surveys" icon={Vote} label="Encuestas" />
-              <NavItem to="/winners" icon={Trophy} label="Premios y Ganadores" />
-              <NavItem to="/privacy" icon={FileText} label="Políticas de Privacidad" />
-            </nav>
-          </div>
-
-          <div className="mt-auto p-4 border-t border-gray-100">
-            <button 
-              onClick={onLogout}
-              className="flex items-center space-x-3 px-4 py-3 w-full text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-            >
-              <LogOut size={20} />
-              <span className="font-medium">Cerrar Sesión</span>
-            </button>
-          </div>
-        </div>
-      </aside>
-
-      {/* Main Content */}
-      <main className="flex-1 min-w-0">
-        <header className="bg-white shadow-sm lg:hidden sticky top-0 z-30">
-          <div className="flex items-center justify-between p-4">
-            <Link to={logoLink} className="hover:opacity-90 transition-opacity">
-              <Logo size="sm" />
-            </Link>
-            <button 
-              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className="p-2 text-gray-600 hover:bg-gray-100 rounded-md"
-            >
-              {isSidebarOpen ? <X size={24} /> : <Menu size={24} />}
-            </button>
-          </div>
-        </header>
-        <div className="p-4 lg:p-8 max-w-7xl mx-auto">
-          {children}
-        </div>
-      </main>
-    </div>
-  );
-};
-
-// --- Screens & Components ---
-
-const PrivacyPolicyScreen = () => {
-  const sections = [
-    {
-      title: "1. Responsable del Tratamiento",
-      content: "Reto 33: Renovación Total es la entidad responsable de la recolección, almacenamiento y tratamiento de los datos personales proporcionados por los usuarios a través de esta plataforma digital."
-    },
-    {
-      title: "2. Datos Personales Recopilados",
-      content: "Para brindar nuestros servicios, recopilamos la siguiente información personal:\n• Datos de Identificación: Nombre, Apellido y Edad (para verificar mayoría de edad).\n• Datos de Contacto: Correo electrónico y número de teléfono celular.\n• Datos Demográficos: Sector y zona de residencia (Cantón/Parroquia) para segmentación de encuestas y beneficios locales.\n• Datos de Interacción: Historial de descargas, participación en encuestas y registro de premios ganados."
-    },
-    {
-      title: "3. Finalidad del Tratamiento de Datos",
-      content: "La información recolectada tiene los siguientes propósitos exclusivos:\n• Gestión de Usuarios: Creación y administración de cuentas personales para acceso a la plataforma.\n• Sorteos y Premios: Verificación de identidad para la participación legal en sorteos semanales y contacto con los ganadores.\n• Estadísticas Comunitarias: Análisis agregado de las respuestas en encuestas para entender las necesidades de los sectores (los votos son anónimos en su reporte final).\n• Comunicación: Envío de notificaciones sobre nuevos instaladores, ganadores de sorteos y actualizaciones importantes."
-    },
-    {
-      title: "4. No Divulgación a Terceros",
-      content: "Reto 33 se compromete a no vender, alquilar ni compartir sus datos personales con empresas terceras para fines publicitarios. Los datos pueden ser compartidos únicamente si existe una obligación legal o una orden judicial."
-    },
-    {
-      title: "5. Derechos del Usuario (ARCO)",
-      content: "Como titular de sus datos, usted tiene derecho a:\n• Acceso: Conocer qué datos suyos tenemos.\n• Rectificación: Actualizar sus datos desde la sección 'Mi Perfil'.\n• Cancelación: Solicitar la eliminación definitiva de su cuenta y sus datos de nuestros registros.\n• Oposición: Oponerse al uso de sus datos para fines específicos.\n\nPara ejercer estos derechos, puede utilizar las herramientas automáticas en la sección 'Mi Perfil' o contactar al administrador."
-    },
-    {
-      title: "6. Seguridad de la Información",
-      content: "Implementamos medidas técnicas para proteger su información contra acceso no autorizado. Sin embargo, el usuario es responsable de mantener la confidencialidad de su contraseña y notificar cualquier uso indebido de su cuenta."
-    },
-    {
-      title: "7. Publicidad de Ganadores",
-      content: "Al aceptar estas políticas, los usuarios consienten que, en caso de resultar ganadores de un sorteo, su nombre y la inicial de su apellido, así como el sector de residencia, puedan ser publicados en la sección de 'Ganadores' para fines de transparencia del concurso."
-    }
-  ];
-
-  return (
-    <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-500">
-       <div className="text-center space-y-4">
-         <div className="inline-flex p-3 bg-reto-navy/10 rounded-full mb-2">
-           <Shield className="w-10 h-10 text-reto-navy" />
-         </div>
-         <h1 className="text-3xl md:text-4xl font-black text-reto-navy">Políticas de Privacidad</h1>
-         <p className="text-gray-600 max-w-2xl mx-auto">
-           En Reto 33 valoramos tu confianza. A continuación detallamos cómo protegemos y utilizamos tu información personal.
-         </p>
-         <p className="text-xs text-gray-500">Última actualización: Febrero 2025</p>
-       </div>
-
-       <div className="grid gap-6">
-         {sections.map((section, idx) => (
-           <div key={idx} className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 hover:border-gray-300 transition-colors">
-             <h3 className="text-lg font-bold text-reto-navy mb-3">{section.title}</h3>
-             <p className="text-gray-600 text-sm leading-relaxed whitespace-pre-line">
-               {section.content}
-             </p>
-           </div>
-         ))}
-       </div>
-
-       <div className="bg-blue-50 border border-blue-100 rounded-xl p-6 text-center">
-         <h4 className="font-bold text-reto-navy mb-2">¿Tienes dudas adicionales?</h4>
-         <p className="text-sm text-gray-600 mb-4">
-           Nuestro equipo de soporte está disponible para responder cualquier inquietud sobre el manejo de tus datos.
-         </p>
-         <a href="mailto:soporte@reto33.com" className="text-reto-pink font-bold hover:underline">
-           Contactar a Soporte
-         </a>
-       </div>
-       
-       <div className="flex justify-center pt-4">
-          <Link to="/" className="text-gray-500 hover:text-reto-navy flex items-center text-sm font-medium">
-             <ArrowLeft size={16} className="mr-1"/> Volver al Inicio
-          </Link>
-       </div>
-    </div>
-  );
-};
-
-const AnalyticsView = ({ surveys, users }: { surveys: Survey[], users: User[] }) => {
-  const activeSurveys = surveys.filter(s => s.isActive);
-  const realUsers = users.filter(u => u.role !== 'admin');
-
-  // --- Procesamiento de Datos de Suscriptores ---
-  
-  // 1. Usuarios por Sector
-  const usersBySector = realUsers.reduce((acc, user) => {
-    // El sector viene formato "Canton - Sector", extraemos solo el sector si es posible
-    const sectorName = user.sector.includes('-') ? user.sector.split('-')[1].trim() : user.sector;
-    acc[sectorName] = (acc[sectorName] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
-  
-  const sectorData = Object.entries(usersBySector)
-    .map(([name, value]) => ({ name, value }))
-    .sort((a, b) => b.value - a.value) // Ordenar por cantidad
-    .slice(0, 10); // Top 10 sectores
-
-  // 2. Usuarios por Edad
-  const usersByAge = realUsers.reduce((acc, user) => {
-    let range = 'Desconocido';
-    const age = user.age;
-    if (age >= 18 && age <= 24) range = '18-24';
-    else if (age >= 25 && age <= 34) range = '25-34';
-    else if (age >= 35 && age <= 44) range = '35-44';
-    else if (age >= 45 && age <= 54) range = '45-54';
-    else if (age >= 55) range = '55+';
-    else range = '< 18';
-
-    acc[range] = (acc[range] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
-
-  const ageData = [
-    { name: '< 18', value: usersByAge['< 18'] || 0 },
-    { name: '18-24', value: usersByAge['18-24'] || 0 },
-    { name: '25-34', value: usersByAge['25-34'] || 0 },
-    { name: '35-44', value: usersByAge['35-44'] || 0 },
-    { name: '45-54', value: usersByAge['45-54'] || 0 },
-    { name: '55+', value: usersByAge['55+'] || 0 },
-  ];
-
-
-  return (
-    <div className="space-y-8 animate-in fade-in duration-500 pb-12">
-      
-      {/* --- SECCIÓN DEMOGRÁFICA DE SUSCRIPTORES REALES --- */}
-      <div>
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-xl font-bold text-reto-navy flex items-center">
-            <Users className="mr-2" size={24} />
-            Estadísticas de Suscriptores Reales
-          </h3>
-          <span className="bg-green-100 text-green-700 font-bold px-3 py-1 rounded-full text-sm">
-            Total: {realUsers.length} Personas
-          </span>
-        </div>
-
-        {realUsers.length === 0 ? (
-          <div className="bg-blue-50 border border-blue-200 rounded-xl p-8 text-center text-reto-navy">
-            <p className="font-bold">Aún no hay suscriptores registrados.</p>
-            <p className="text-sm mt-1">Las estadísticas aparecerán cuando los usuarios comiencen a registrarse.</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Gráfico de Sectores */}
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-              <h4 className="font-bold text-gray-800 mb-2 flex items-center">
-                <Map size={18} className="mr-2 text-reto-pink"/> 
-                Top Sectores con más Usuarios
-              </h4>
-              <p className="text-xs text-gray-500 mb-4">Distribución geográfica de los suscriptores registrados.</p>
-              <div className="h-64 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={sectorData} layout="vertical" margin={{ top: 5, right: 30, left: 40, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
-                    <XAxis type="number" hide />
-                    <YAxis dataKey="name" type="category" width={100} tick={{fontSize: 11, fill: '#4B5563'}} />
-                    <Tooltip 
-                      contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                      cursor={{fill: 'rgba(0,0,0,0.05)'}}
-                    />
-                    <Bar dataKey="value" name="Usuarios" fill="#009688" radius={[0, 4, 4, 0]} barSize={20} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-
-            {/* Gráfico de Edades */}
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-              <h4 className="font-bold text-gray-800 mb-2 flex items-center">
-                <UserIcon size={18} className="mr-2 text-reto-navy"/>
-                Distribución por Edades
-              </h4>
-              <p className="text-xs text-gray-500 mb-4">Rango etario de la comunidad.</p>
-              <div className="h-64 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={ageData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="name" tick={{fontSize: 12}} />
-                    <YAxis allowDecimals={false} />
-                    <Tooltip 
-                      contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                    />
-                    <Bar dataKey="value" name="Usuarios" fill="#00205B" radius={[4, 4, 0, 0]} barSize={30}>
-                       {ageData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={index % 2 === 0 ? '#00205B' : '#E91E63'} />
-                        ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* --- SECCIÓN DE RESULTADOS DE VOTACIÓN --- */}
-      <div className="pt-8 border-t border-gray-200">
-        <h3 className="text-xl font-bold text-reto-navy mb-6 flex items-center">
-          <BarChartIcon className="mr-2" size={24} />
-          Resultados de Votación (Tiempo Real)
-        </h3>
-
-        {activeSurveys.length === 0 ? (
-          <div className="text-center py-12 bg-white rounded-xl border border-dashed border-gray-300">
-            <BarChartIcon className="mx-auto h-12 w-12 text-gray-300 mb-3" />
-            <h3 className="text-lg font-medium text-gray-900">No hay encuestas activas</h3>
-            <p className="text-gray-500">Genera o activa encuestas para ver los resultados.</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {activeSurveys.map(survey => (
-              <div key={survey.id} className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-                <div className="flex justify-between items-start mb-4">
-                   <h4 className="font-bold text-gray-800 h-auto leading-tight w-3/4">
-                    {survey.question}
-                  </h4>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-white bg-reto-navy px-2 py-1 rounded">
-                    {survey.category}
-                  </span>
-                </div>
-                
-                <div className="h-64 w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={survey.options} layout="vertical" margin={{ top: 5, right: 30, left: 40, bottom: 5 }}>
-                      <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
-                      <XAxis type="number" hide />
-                      <YAxis 
-                        dataKey="text" 
-                        type="category" 
-                        width={120} 
-                        tick={{fontSize: 11, fill: '#6B7280'}} 
-                        interval={0}
-                      />
-                      <Tooltip 
-                        contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                        cursor={{fill: 'rgba(0,0,0,0.05)'}}
-                      />
-                      <Bar dataKey="votes" name="Votos" radius={[0, 4, 4, 0]} barSize={20}>
-                        {survey.options.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={index % 2 === 0 ? '#FFC107' : '#E91E63'} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="mt-4 flex justify-between text-xs font-bold text-gray-500 border-t pt-3">
-                  <span>Total Votos: {survey.options.reduce((a, b) => a + b.votes, 0)}</span>
-                  <span className="text-green-600">En curso</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
-
-const SurveyManager = ({ surveys, onUpdateSurvey, onAddSurvey }: { surveys: Survey[], onUpdateSurvey: (s: Survey) => void, onAddSurvey?: (s: Survey) => void }) => {
-  const [editingSurveyId, setEditingSurveyId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState<Survey | null>(null);
-  const [isGenerating, setIsGenerating] = useState(false);
-
-  const startEdit = (survey: Survey) => {
-    setEditingSurveyId(survey.id);
-    setEditForm(JSON.parse(JSON.stringify(survey)));
-  };
-
-  const handleSave = () => {
-    if (editForm) {
-      onUpdateSurvey(editForm);
-      setEditingSurveyId(null);
-      setEditForm(null);
-    }
-  };
-
-  const updateOption = (index: number, field: keyof SurveyOption, value: any) => {
-    if (!editForm) return;
-    const newOptions = [...editForm.options];
-    newOptions[index] = { ...newOptions[index], [field]: value };
-    setEditForm({ ...editForm, options: newOptions });
-  };
-
-  const removeOption = (index: number) => {
-    if (!editForm) return;
-    const newOptions = editForm.options.filter((_, i) => i !== index);
-    setEditForm({ ...editForm, options: newOptions });
-  };
-
-  const addOption = () => {
-    if (!editForm) return;
-    const newOption: SurveyOption = {
-      id: `opt-${Date.now()}`,
-      text: 'Nueva Opción',
-      votes: 0,
-      image: editForm.category.includes('Alcalde') || editForm.category.includes('Prefecto') ? '' : undefined
-    };
-    setEditForm({ ...editForm, options: [...editForm.options, newOption] });
-  };
-
-  const handleImageUpload = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      if (file.size > 1024 * 1024) { 
-        alert("La imagen es muy grande. Por favor usa una imagen menor a 1MB.");
-        return;
-      }
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target?.result) {
-          updateOption(index, 'image', event.target.result as string);
-        }
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleGenerateAI = async () => {
-    setIsGenerating(true);
-    const newSurvey = await generateWeeklySurvey();
-    setIsGenerating(false);
-    if (newSurvey && onAddSurvey) {
-      onAddSurvey(newSurvey);
-    } else if (!newSurvey) {
-      alert("No se pudo generar la encuesta. Verifica la API Key y la conexión.");
-    }
-  };
-
-  return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h3 className="text-xl font-bold text-reto-navy flex items-center">
-          <Vote className="mr-2" /> Gestión de Encuestas
-        </h3>
-        {onAddSurvey && (
-          <Button onClick={handleGenerateAI} disabled={isGenerating} className="flex items-center gap-2 text-sm py-2">
-            {isGenerating ? <Loader2 className="animate-spin" size={16} /> : <Sparkles size={16} />}
-            Generar Encuesta (IA)
-          </Button>
-        )}
-      </div>
-
-      <div className="grid gap-6">
-        {surveys.map(survey => (
-          <div key={survey.id} className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-            {editingSurveyId === survey.id && editForm ? (
-              <div className="space-y-4">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-xs font-bold bg-blue-100 text-blue-700 px-2 py-1 rounded">{editForm.category}</span>
-                  <div className="flex space-x-2">
-                    <Button variant="ghost" onClick={() => setEditingSurveyId(null)} className="py-1 px-3 text-sm">Cancelar</Button>
-                    <Button onClick={handleSave} className="py-1 px-3 text-sm">Guardar</Button>
-                  </div>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Pregunta</label>
-                  <input 
-                    type="text" 
-                    className="w-full border rounded p-2" 
-                    value={editForm.question}
-                    onChange={(e) => setEditForm({...editForm, question: e.target.value})}
-                  />
-                </div>
-
-                <div className="space-y-3">
-                  <label className="block text-sm font-medium text-gray-700">Opciones</label>
-                  {editForm.options.map((opt, idx) => (
-                    <div key={idx} className="flex flex-col gap-2 p-3 bg-gray-50 rounded border border-gray-100">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-gray-400 w-6">{idx + 1}.</span>
-                        <input 
-                          type="text" 
-                          className="flex-1 border rounded p-1 text-sm" 
-                          value={opt.text}
-                          onChange={(e) => updateOption(idx, 'text', e.target.value)}
-                          placeholder="Texto de la opción"
-                        />
-                        <button onClick={() => removeOption(idx)} className="text-red-500 hover:bg-red-50 p-1 rounded">
-                          <MinusCircle size={16} />
-                        </button>
-                      </div>
-                      
-                      {(editForm.category.includes('Alcalde') || editForm.category.includes('Prefecto')) && (
-                        <div className="flex items-center gap-3 ml-8 mt-1 p-2 bg-white rounded border border-dashed border-gray-300">
-                           <div className="relative w-12 h-12 shrink-0">
-                             {opt.image ? (
-                               <img src={opt.image} alt="Preview" className="w-full h-full rounded-full object-cover border bg-gray-100" />
-                             ) : (
-                               <div className="w-full h-full rounded-full bg-gray-100 flex items-center justify-center border text-gray-400">
-                                 <UserIcon size={20} />
-                               </div>
-                             )}
-                           </div>
-                           <div className="flex-1">
-                             <label className="cursor-pointer inline-flex items-center px-3 py-1.5 bg-reto-navy text-white rounded-md shadow-sm text-xs font-medium hover:bg-opacity-90 transition-colors">
-                               <Upload size={14} className="mr-2" />
-                               {opt.image ? 'Cambiar Foto' : 'Subir Foto'}
-                               <input 
-                                 type="file" 
-                                 accept="image/*"
-                                 className="hidden" 
-                                 onChange={(e) => handleImageUpload(idx, e)}
-                               />
-                             </label>
-                             <p className="text-[10px] text-gray-500 mt-1">Soporta JPG, PNG. Máx 1MB.</p>
-                           </div>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                  <button onClick={addOption} className="text-sm text-reto-navy font-medium flex items-center hover:underline mt-2">
-                    <Plus size={16} className="mr-1" /> Agregar Opción
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div>
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <span className="text-xs font-bold bg-gray-100 text-gray-600 px-2 py-1 rounded mb-2 inline-block">
-                      {survey.category}
-                    </span>
-                    <h4 className="font-bold text-lg text-gray-900">{survey.question}</h4>
-                  </div>
-                  <button onClick={() => startEdit(survey)} className="text-reto-navy hover:bg-blue-50 p-2 rounded-full transition-colors">
-                    <Edit size={20} />
-                  </button>
-                </div>
-                <div className="space-y-2">
-                  {survey.options.map((opt, i) => (
-                    <div key={i} className="flex items-center text-sm text-gray-600">
-                      <div className="w-full bg-gray-100 rounded-full h-2 mr-3 relative overflow-hidden">
-                         <div 
-                           className="absolute top-0 left-0 h-full bg-reto-navy opacity-20" 
-                           style={{ width: `${(opt.votes / Math.max(1, survey.options.reduce((a,b) => a+b.votes, 0))) * 100}%` }}
-                         />
-                      </div>
-                      <span className="w-1/3 truncate font-medium">{opt.text}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-};
-
-const AddAdminModal = ({ onClose, onSave }: { onClose: () => void, onSave: (admin: User) => void }) => {
+  // Registration State
   const [formData, setFormData] = useState({
-    name: '',
-    surname: '',
-    email: '',
-    password: '',
-    phone: ''
+    firstName: '', lastName: '', age: '', phone: '', 
+    zone: 'Santo Domingo' as Zone, sector: '', email: '', password: ''
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Verification State
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [verificationCode, setVerificationCode] = useState('');
+  const [inputCode, setInputCode] = useState('');
+  const [isSendingCode, setIsSendingCode] = useState(false);
+
+  const handleAdminLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    const newAdmin: User = {
+    if (email === 'gtplayec@gmail.com' && password === 'RETO2026@') {
+      const adminUser: User = {
+        id: 'admin-main',
+        firstName: 'Admin',
+        lastName: 'Principal',
+        age: 30,
+        phone: '0000000000',
+        zone: 'Santo Domingo',
+        sector: 'Centro',
+        email: email,
+        role: 'admin',
+        downloadHistory: [],
+        surveyHistory: []
+      };
+      onLogin(adminUser);
+      return;
+    }
+    
+    // Check for other admins stored
+    const users = storageService.getUsers();
+    // Normal User Login check
+    const foundUser = users.find(u => u.email === email);
+    if (foundUser) {
+      onLogin(foundUser);
+    } else {
+      alert("Credenciales incorrectas o usuario no encontrado.");
+    }
+  };
+
+  const handlePreRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    console.log("Iniciando registro...");
+    
+    // Validación manual para asegurar feedback al usuario
+    if (!formData.firstName || !formData.lastName || !formData.age || !formData.phone || !formData.email || !formData.sector) {
+      alert("Por favor completa todos los campos para continuar.");
+      return;
+    }
+
+    // Check if user already exists
+    const users = storageService.getUsers();
+    if (users.find(u => u.email === formData.email)) {
+        alert("Este correo electrónico ya está registrado.");
+        return;
+    }
+
+    setIsSendingCode(true);
+
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    setVerificationCode(code);
+
+    try {
+      // Intento de obtener la función send de varias formas posibles para compatibilidad
+      // 'emailjs' importado como namespace (* as emailjs)
+      const sendEmail = (emailjs as any).send || (emailjs as any).default?.send;
+
+      if (typeof sendEmail !== 'function') {
+         console.error("EmailJS import structure:", emailjs);
+         throw new Error("No se pudo cargar la librería de envío de correos. Por favor recarga la página.");
+      }
+
+      await sendEmail(
+        'service_pkc5h87',
+        'template_rgm0xms',
+        {
+          to_name: `${formData.firstName} ${formData.lastName}`,
+          email_registro: formData.email, 
+          verification_code: code, // AQUI SE HIZO EL CAMBIO: Se usa el nombre de variable que configuraste en EmailJS
+          message: `Tu código de verificación es: ${code}`
+        },
+        'owUYyPbGCKtFmhc8n'
+      );
+      
+      setIsVerifying(true);
+      alert(`Hemos enviado un código de verificación a ${formData.email}. Revisa tu bandeja de entrada o spam.`);
+    } catch (error: any) {
+      console.error("Error sending email:", error);
+      alert(`Error al enviar el correo: ${error.message || 'Inténtalo de nuevo'}.`);
+    } finally {
+      setIsSendingCode(false);
+    }
+  };
+
+  const handleFinalRegister = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (inputCode !== verificationCode) {
+      alert("El código ingresado es incorrecto.");
+      return;
+    }
+
+    const newUser: User = {
       id: Date.now().toString(),
-      name: formData.name,
-      surname: formData.surname,
-      email: formData.email,
-      password: formData.password,
+      firstName: formData.firstName,
+      lastName: formData.lastName,
+      age: parseInt(formData.age),
       phone: formData.phone,
-      age: 30, // Default age
-      sector: 'Administración',
-      role: 'admin',
-      registeredAt: new Date().toISOString(),
-      lastLogin: new Date().toISOString(),
-      isVerified: true,
-      hasVotedCurrentWeek: false,
+      zone: formData.zone,
+      sector: formData.sector,
+      email: formData.email,
+      role: 'user',
       downloadHistory: [],
       surveyHistory: []
     };
-    onSave(newAdmin);
+    storageService.saveUser(newUser);
+    onLogin(newUser);
   };
 
-  return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
-        <div className="bg-reto-navy p-4 flex justify-between items-center">
-          <h3 className="text-white font-bold flex items-center">
-            <Shield className="mr-2" size={20} />
-            Nuevo Administrador
-          </h3>
-          <button onClick={onClose} className="text-white/80 hover:text-white transition-colors">
-            <X size={20} />
+  if (isVerifying) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
+        <div className="bg-white p-8 rounded-xl shadow-lg max-w-md w-full text-center">
+          <div className="flex justify-center mb-4 text-brand-teal">
+            <Mail size={48} />
+          </div>
+          <h2 className="text-2xl font-bold text-brand-blue mb-2">Verifica tu Correo</h2>
+          <p className="text-gray-600 mb-6 text-sm">
+            Hemos enviado un código de 6 dígitos a <br/><strong>{formData.email}</strong>
+          </p>
+          
+          <form onSubmit={handleFinalRegister} className="space-y-4">
+            <input 
+              type="text" 
+              maxLength={6}
+              placeholder="000000" 
+              className="w-full text-center text-3xl tracking-widest p-2 border-2 border-brand-teal rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue"
+              value={inputCode}
+              onChange={e => setInputCode(e.target.value.replace(/[^0-9]/g, ''))}
+            />
+            
+            <button type="submit" className="w-full bg-brand-blue text-white py-3 rounded-lg hover:bg-blue-900 transition font-bold flex justify-center items-center">
+              <CheckCircle size={20} className="mr-2" /> Verificar y Entrar
+            </button>
+          </form>
+
+          <button 
+            onClick={() => setIsVerifying(false)} 
+            className="mt-4 text-gray-500 text-sm underline"
+          >
+            Corregir correo electrónico
           </button>
         </div>
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+      </div>
+    );
+  }
+
+  if (!isRegistering) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
+        <div className="bg-white p-8 rounded-xl shadow-lg max-w-md w-full">
+          <div className="flex justify-center mb-6"><AppLogo /></div>
+          <h2 className="text-2xl font-bold text-center text-brand-blue mb-6">Iniciar Sesión</h2>
+          <form onSubmit={handleAdminLogin} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700">Nombre</label>
-              <input required type="text" className="w-full border border-gray-300 rounded-md p-2 mt-1 focus:ring-reto-navy focus:border-reto-navy outline-none" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+              <label className="block text-sm font-medium text-gray-700">Email</label>
+              <input type="email" required className="w-full p-2 border rounded mt-1" value={email} onChange={e => setEmail(e.target.value)} />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">Apellido</label>
-              <input required type="text" className="w-full border border-gray-300 rounded-md p-2 mt-1 focus:ring-reto-navy focus:border-reto-navy outline-none" value={formData.surname} onChange={e => setFormData({...formData, surname: e.target.value})} />
+              <label className="block text-sm font-medium text-gray-700">Contraseña (Solo Admin) / Email (Usuario)</label>
+              <input type="password" className="w-full p-2 border rounded mt-1" value={password} onChange={e => setPassword(e.target.value)} placeholder="Contraseña para admin..." />
+              <p className="text-xs text-gray-500 mt-1">Usuarios normales pueden usar cualquier contraseña para demo.</p>
             </div>
+            <button type="submit" className="w-full bg-brand-teal text-white py-2 rounded hover:bg-teal-600 transition">Entrar</button>
+          </form>
+          <div className="mt-4 text-center">
+            <p>¿No tienes cuenta? <button onClick={() => setIsRegistering(true)} className="text-brand-blue font-bold underline">Regístrate</button></p>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
+      <div className="bg-white p-8 rounded-xl shadow-lg max-w-lg w-full my-8">
+        <div className="flex justify-center mb-6"><AppLogo /></div>
+        <h2 className="text-2xl font-bold text-center text-brand-blue mb-6">Registro de Usuario</h2>
+        <form onSubmit={handlePreRegister} className="space-y-3">
+          <div className="grid grid-cols-2 gap-2">
+            <input placeholder="Nombre" className="p-2 border rounded" value={formData.firstName} onChange={e => setFormData({...formData, firstName: e.target.value})} />
+            <input placeholder="Apellido" className="p-2 border rounded" value={formData.lastName} onChange={e => setFormData({...formData, lastName: e.target.value})} />
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <input placeholder="Edad" type="number" className="p-2 border rounded" value={formData.age} onChange={e => setFormData({...formData, age: e.target.value})} />
+            <input placeholder="Teléfono" className="p-2 border rounded" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
+          </div>
+          <input placeholder="Email" type="email" className="w-full p-2 border rounded" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
+          
           <div>
-            <label className="block text-sm font-medium text-gray-700">Email</label>
-            <input required type="email" className="w-full border border-gray-300 rounded-md p-2 mt-1 focus:ring-reto-navy focus:border-reto-navy outline-none" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
+            <label className="block text-sm font-medium text-gray-700">Zona</label>
+            <select className="w-full p-2 border rounded" value={formData.zone} onChange={e => setFormData({...formData, zone: e.target.value as Zone, sector: ''})}>
+              <option value="Santo Domingo">Santo Domingo</option>
+              <option value="La Concordia">La Concordia</option>
+            </select>
           </div>
+          
           <div>
-            <label className="block text-sm font-medium text-gray-700">Teléfono</label>
-            <input required type="tel" className="w-full border border-gray-300 rounded-md p-2 mt-1 focus:ring-reto-navy focus:border-reto-navy outline-none" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
+            <label className="block text-sm font-medium text-gray-700">Sector</label>
+            <select className="w-full p-2 border rounded" value={formData.sector} onChange={e => setFormData({...formData, sector: e.target.value})}>
+              <option value="">Seleccione un sector...</option>
+              {LOCATIONS[formData.zone].map(s => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Contraseña</label>
-            <input required type="password" className="w-full border border-gray-300 rounded-md p-2 mt-1 focus:ring-reto-navy focus:border-reto-navy outline-none" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} />
-            <p className="text-xs text-gray-500 mt-1">Este usuario tendrá acceso completo al panel de control.</p>
-          </div>
-          <div className="pt-4 flex gap-3">
-             <Button type="button" variant="ghost" fullWidth onClick={onClose}>Cancelar</Button>
-             <Button type="submit" fullWidth>Crear Admin</Button>
+
+          <button 
+            type="submit" 
+            disabled={isSendingCode}
+            className={`w-full text-white py-2 rounded transition font-bold flex justify-center items-center ${isSendingCode ? 'bg-gray-400 cursor-not-allowed' : 'bg-brand-pink hover:bg-pink-600'}`}
+          >
+            {isSendingCode ? <><Loader2 className="animate-spin mr-2" /> Enviando Código...</> : 'Registrarse y Verificar'}
+          </button>
+          <div className="text-center mt-2">
+             <button type="button" onClick={() => setIsRegistering(false)} className="text-gray-500 text-sm underline">Volver al login</button>
           </div>
         </form>
       </div>
@@ -767,515 +253,151 @@ const AddAdminModal = ({ onClose, onSave }: { onClose: () => void, onSave: (admi
   );
 };
 
-const AdminDashboard = ({ surveys, onUpdateSurvey, onAddSurvey }: { surveys: Survey[], onUpdateSurvey: (s: Survey) => void, onAddSurvey?: (s: Survey) => void }) => {
-  const [users, setUsers] = useState<User[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [showAdminModal, setShowAdminModal] = useState(false);
-  const [activeTab, setActiveTab] = useState<'users' | 'surveys' | 'analytics'>('users');
+// 2. Dashboard Sections
 
-  useEffect(() => {
-    setUsers(getMasterDB());
-  }, []);
+const ProfileSection: React.FC<{ user: User, onUpdate: (u: User) => void, onLogout: () => void }> = ({ user, onUpdate, onLogout }) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editData, setEditData] = useState(user);
 
-  const handleExportExcel = () => {
-    const dataToExport = users.map(u => ({
-      ID: u.id,
-      Nombre: u.name,
-      Apellido: u.surname,
-      Email: u.email,
-      Teléfono: u.phone,
-      Edad: u.age,
-      Sector: u.sector,
-      Rol: u.role,
-      Verificado: u.isVerified ? 'Sí' : 'No',
-      "Fecha Registro": new Date(u.registeredAt).toLocaleString(),
-      "Último Acceso": new Date(u.lastLogin).toLocaleString(),
-      "Total Descargas": u.downloadHistory.length,
-      "Total Encuestas": u.surveyHistory.length
-    }));
-
-    const ws = XLSX.utils.json_to_sheet(dataToExport);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Usuarios Reto 33");
-
-    const fileName = `reto33_usuarios_${new Date().toISOString().slice(0,10)}.xlsx`;
-    XLSX.writeFile(wb, fileName);
+  const handleSave = () => {
+    onUpdate(editData);
+    setIsEditing(false);
+    alert("Perfil actualizado correctamente");
   };
 
-  const handleCreateAdmin = (newAdmin: User) => {
-    if (users.some(u => u.email.toLowerCase() === newAdmin.email.toLowerCase())) {
-      alert('El email ya existe en la base de datos.');
-      return;
+  const handleDelete = () => {
+    if (confirm("¿Estás seguro de que quieres eliminar tu cuenta? Esta acción no se puede deshacer.")) {
+      storageService.deleteUser(user.id);
+      onLogout();
     }
-    saveToMasterDB(newAdmin);
-    setUsers([...users, newAdmin]);
-    setShowAdminModal(false);
-    alert('Administrador agregado correctamente.');
-  };
-
-  const filteredUsers = users.filter(u => 
-    u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    u.surname.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    u.sector.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const stats = {
-    total: users.length,
-    verified: users.filter(u => u.isVerified).length,
-    today: users.filter(u => {
-      const today = new Date().toDateString();
-      return new Date(u.registeredAt).toDateString() === today;
-    }).length
   };
 
   return (
-    <div className="space-y-6 relative">
-      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-reto-navy flex items-center">
-            <Shield className="mr-3 text-reto-pink" size={32} />
-            Panel de Control
-          </h1>
-          <p className="text-gray-600">Gestión de usuarios y control de ingresos.</p>
+    <div className="bg-white p-6 rounded-lg shadow-md">
+      <h2 className="text-2xl font-bold text-brand-blue mb-4 flex items-center"><UserIcon className="mr-2" /> Mi Perfil</h2>
+      
+      {isEditing ? (
+        <div className="space-y-4">
+           <div className="grid grid-cols-2 gap-4">
+            <input className="border p-2 rounded" value={editData.firstName} onChange={e => setEditData({...editData, firstName: e.target.value})} />
+            <input className="border p-2 rounded" value={editData.lastName} onChange={e => setEditData({...editData, lastName: e.target.value})} />
+            <input className="border p-2 rounded" type="number" value={editData.age} onChange={e => setEditData({...editData, age: parseInt(e.target.value)})} />
+            <input className="border p-2 rounded" value={editData.phone} onChange={e => setEditData({...editData, phone: e.target.value})} />
+           </div>
+           <div>
+             <select className="border p-2 rounded w-full" value={editData.zone} onChange={e => setEditData({...editData, zone: e.target.value as Zone, sector: ''})}>
+               <option value="Santo Domingo">Santo Domingo</option>
+               <option value="La Concordia">La Concordia</option>
+             </select>
+           </div>
+           <div>
+             <select className="border p-2 rounded w-full" value={editData.sector} onChange={e => setEditData({...editData, sector: e.target.value})}>
+               {LOCATIONS[editData.zone].map(s => <option key={s} value={s}>{s}</option>)}
+             </select>
+           </div>
+           <div className="flex space-x-2">
+             <button onClick={handleSave} className="bg-brand-teal text-white px-4 py-2 rounded">Guardar</button>
+             <button onClick={() => setIsEditing(false)} className="bg-gray-300 text-gray-700 px-4 py-2 rounded">Cancelar</button>
+           </div>
         </div>
-        <div className="flex bg-gray-100 p-1 rounded-lg">
-           <button 
-             onClick={() => setActiveTab('users')}
-             className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'users' ? 'bg-white shadow text-reto-navy' : 'text-gray-500 hover:text-gray-700'}`}
-           >
-             Usuarios
-           </button>
-           <button 
-             onClick={() => setActiveTab('surveys')}
-             className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'surveys' ? 'bg-white shadow text-reto-navy' : 'text-gray-500 hover:text-gray-700'}`}
-           >
-             Encuestas
-           </button>
-           <button 
-             onClick={() => setActiveTab('analytics')}
-             className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'analytics' ? 'bg-white shadow text-reto-navy' : 'text-gray-500 hover:text-gray-700'}`}
-           >
-             Estadísticas
-           </button>
+      ) : (
+        <div className="space-y-2">
+          <p><strong>Nombre:</strong> {user.firstName} {user.lastName}</p>
+          <p><strong>Edad:</strong> {user.age}</p>
+          <p><strong>Teléfono:</strong> {user.phone}</p>
+          <p><strong>Ubicación:</strong> {user.sector}, {user.zone}</p>
+          <button onClick={() => setIsEditing(true)} className="text-brand-blue underline text-sm">Editar Información</button>
+        </div>
+      )}
+
+      <div className="mt-8">
+        <h3 className="font-bold text-lg mb-2">Historial</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="bg-gray-50 p-3 rounded">
+            <h4 className="font-semibold text-brand-teal">Descargas</h4>
+            <ul className="list-disc pl-4 text-sm text-gray-600">
+              {user.downloadHistory.length > 0 ? user.downloadHistory.map((d, i) => <li key={i}>{d}</li>) : <li>Sin descargas</li>}
+            </ul>
+          </div>
+          <div className="bg-gray-50 p-3 rounded">
+            <h4 className="font-semibold text-brand-pink">Encuestas</h4>
+             <ul className="list-disc pl-4 text-sm text-gray-600">
+              {user.surveyHistory.length > 0 ? user.surveyHistory.map((s, i) => <li key={i}>Encuesta ID: {s}</li>) : <li>Sin participación</li>}
+            </ul>
+          </div>
         </div>
       </div>
 
-      {activeTab === 'analytics' ? (
-        <AnalyticsView surveys={surveys} users={users} />
-      ) : activeTab === 'surveys' ? (
-        <SurveyManager surveys={surveys} onUpdateSurvey={onUpdateSurvey} onAddSurvey={onAddSurvey} />
-      ) : (
-        <>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-500 uppercase">Usuarios Totales</p>
-                  <p className="text-3xl font-bold text-reto-navy mt-1">{stats.total}</p>
-                </div>
-                <div className="bg-blue-100 p-3 rounded-full text-reto-navy">
-                  <Users size={24} />
-                </div>
-              </div>
-            </div>
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-500 uppercase">Verificados</p>
-                  <p className="text-3xl font-bold text-green-600 mt-1">{stats.verified}</p>
-                </div>
-                <div className="bg-green-100 p-3 rounded-full text-green-600">
-                  <CheckCircle size={24} />
-                </div>
-              </div>
-            </div>
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-500 uppercase">Registros Hoy</p>
-                  <p className="text-3xl font-bold text-reto-pink mt-1">{stats.today}</p>
-                </div>
-                <div className="bg-pink-100 p-3 rounded-full text-reto-pink">
-                  <Calendar size={24} />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex justify-end gap-2 mb-4">
-             <button 
-              onClick={() => setShowAdminModal(true)}
-              className="flex items-center space-x-2 bg-reto-navy text-white px-4 py-2 rounded-lg hover:bg-blue-900 transition-colors shadow-sm font-medium"
-            >
-              <UserPlus size={18} />
-              <span>Agregar Admin</span>
-            </button>
-            <button 
-              onClick={handleExportExcel}
-              className="flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors shadow-sm font-medium"
-            >
-              <FileSpreadsheet size={18} />
-              <span>Exportar Excel</span>
-            </button>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <div className="p-6 border-b border-gray-200 flex flex-col md:flex-row justify-between items-center gap-4">
-              <h2 className="text-xl font-bold text-gray-800 flex items-center">
-                <Database className="mr-2 text-gray-400" size={20}/>
-                Base de Datos de Suscriptores
-              </h2>
-              <div className="relative w-full md:w-64">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
-                <input 
-                  type="text" 
-                  placeholder="Buscar por nombre, email..." 
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-reto-navy focus:border-reto-navy"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm text-left">
-                <thead className="bg-gray-50 text-gray-500 font-medium border-b border-gray-200">
-                  <tr>
-                    <th className="px-6 py-4">Usuario</th>
-                    <th className="px-6 py-4">Contacto</th>
-                    <th className="px-6 py-4">Ubicación</th>
-                    <th className="px-6 py-4">Estado</th>
-                    <th className="px-6 py-4">Registro / Último Acceso</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {filteredUsers.length === 0 ? (
-                     <tr>
-                       <td colSpan={5} className="px-6 py-8 text-center text-gray-500">No se encontraron usuarios</td>
-                     </tr>
-                  ) : (
-                    filteredUsers.map((u) => (
-                      <tr key={u.id} className="hover:bg-blue-50/30 transition-colors">
-                        <td className="px-6 py-4">
-                          <div className="flex items-center">
-                            <div className={`w-8 h-8 rounded-full ${u.role === 'admin' ? 'bg-reto-gold text-reto-navy' : 'bg-reto-navy text-white'} flex items-center justify-center font-bold text-xs mr-3`}>
-                              {u.name.charAt(0)}{u.surname.charAt(0)}
-                            </div>
-                            <div>
-                              <p className="font-bold text-gray-900 flex items-center">
-                                 {u.name} {u.surname}
-                                 {u.role === 'admin' && <Shield size={12} className="ml-1 text-reto-gold" fill="currentColor"/>}
-                              </p>
-                              <p className="text-xs text-gray-500">Edad: {u.age}</p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex flex-col">
-                            <span className="text-gray-900 font-medium">{u.email}</span>
-                            <span className="text-gray-500 text-xs">{u.phone}</span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs font-medium">
-                            {u.sector}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4">
-                           {u.isVerified ? (
-                             <span className="inline-flex items-center text-green-600 text-xs font-bold bg-green-50 px-2 py-1 rounded-full">
-                               <CheckCircle size={12} className="mr-1"/> Verificado
-                             </span>
-                           ) : (
-                             <span className="inline-flex items-center text-orange-600 text-xs font-bold bg-orange-50 px-2 py-1 rounded-full">
-                               Pendiente
-                             </span>
-                           )}
-                        </td>
-                        <td className="px-6 py-4 text-gray-500 text-xs">
-                          <div>Reg: {new Date(u.registeredAt).toLocaleDateString()}</div>
-                          <div className="text-reto-navy font-medium mt-1">
-                            Acceso: {new Date(u.lastLogin).toLocaleDateString()} {new Date(u.lastLogin).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </>
-      )}
-
-      {showAdminModal && (
-        <AddAdminModal onClose={() => setShowAdminModal(false)} onSave={handleCreateAdmin} />
-      )}
+      <div className="mt-8 border-t pt-4">
+        <button onClick={handleDelete} className="flex items-center text-red-600 hover:text-red-800">
+          <Trash2 className="w-4 h-4 mr-2" /> Eliminar mi cuenta
+        </button>
+      </div>
     </div>
   );
 };
 
-// --- Additional Screens ---
+const InstallersSection: React.FC<{ user: User, onUpdateUser: (u: User) => void }> = ({ user, onUpdateUser }) => {
+  const [modalData, setModalData] = useState<{ isOpen: boolean, installer: AppInstaller | null }>({ isOpen: false, installer: null });
 
-const LoginScreen = ({ onLogin }: { onLogin: (u: User) => void }) => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // ACCESO SUPER ADMINISTRADOR
-    if (email.toLowerCase() === 'gtplayec@gmail.com' && password === 'RETO2026') {
-      const superAdmin: User = {
-        id: 'admin-main',
-        name: 'Administrador',
-        surname: 'Principal',
-        age: 35,
-        phone: '0999999999',
-        sector: 'Administración',
-        email: 'gtplayec@gmail.com',
-        role: 'admin',
-        registeredAt: new Date().toISOString(),
-        lastLogin: new Date().toISOString(),
-        isVerified: true,
-        hasVotedCurrentWeek: false,
-        downloadHistory: [],
-        surveyHistory: [],
-        password: 'RETO2026'
-      };
-
-      // Guardar en "BD" si no existe para que persista en la lista de usuarios
-      const users = getMasterDB();
-      if (!users.find(u => u.email === superAdmin.email)) {
-        saveToMasterDB(superAdmin);
-      }
-
-      onLogin(superAdmin);
-      return;
-    }
-
-    const users = getMasterDB();
-    const user = users.find(u => u.email.toLowerCase() === email.toLowerCase());
-    
-    // Simple password check (In real app, hash this)
-    if (user && (user.password === password || (!user.password && password === 'admin123'))) {
-      const updatedUser = { ...user, lastLogin: new Date().toISOString() };
-      saveToMasterDB(updatedUser);
-      onLogin(updatedUser);
-    } else {
-      setError('Credenciales incorrectas');
-    }
-  };
-
-  return (
-    <AuthLayout>
-      <h2 className="text-2xl font-bold text-reto-navy text-center mb-6">Iniciar Sesión</h2>
-      {error && <div className="mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg flex items-center"><AlertCircle size={16} className="mr-2"/>{error}</div>}
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Email</label>
-          <input type="email" required className="w-full mt-1 p-2 border rounded-md focus:ring-reto-navy focus:border-reto-navy" value={email} onChange={e => setEmail(e.target.value)} />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Contraseña</label>
-          <input type="password" required className="w-full mt-1 p-2 border rounded-md focus:ring-reto-navy focus:border-reto-navy" value={password} onChange={e => setPassword(e.target.value)} />
-        </div>
-        <Button fullWidth type="submit">Ingresar</Button>
-      </form>
-      <div className="mt-6 text-center text-sm">
-        <span className="text-gray-600">¿No tienes cuenta?</span>
-        <Link to="/register" className="ml-2 font-bold text-reto-navy hover:underline">Regístrate</Link>
-      </div>
-    </AuthLayout>
-  );
-};
-
-const RegisterScreen = ({ onRegister }: { onRegister: (u: User) => void }) => {
-  const [formData, setFormData] = useState({
-    name: '', surname: '', age: '', phone: '', email: '', password: '',
-    canton: Object.keys(ZONES)[0], sector: ZONES[Object.keys(ZONES)[0]][0]
-  });
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const newUser: User = {
-      id: Date.now().toString(),
-      name: formData.name,
-      surname: formData.surname,
-      age: parseInt(formData.age),
-      phone: formData.phone,
-      email: formData.email,
-      password: formData.password,
-      sector: `${formData.canton} - ${formData.sector}`,
-      role: 'user',
-      registeredAt: new Date().toISOString(),
-      lastLogin: new Date().toISOString(),
-      isVerified: true, // Auto verify for demo
-      hasVotedCurrentWeek: false,
-      downloadHistory: [],
-      surveyHistory: []
-    };
-    saveToMasterDB(newUser);
-    onRegister(newUser);
-  };
-
-  const handleCantonChange = (canton: string) => {
-    setFormData({ ...formData, canton, sector: ZONES[canton][0] });
-  };
-
-  return (
-    <AuthLayout>
-      <h2 className="text-2xl font-bold text-reto-navy text-center mb-6">Registro de Usuario</h2>
-      <form onSubmit={handleSubmit} className="space-y-3">
-        <div className="grid grid-cols-2 gap-3">
-          <input placeholder="Nombre" required className="p-2 border rounded-md" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
-          <input placeholder="Apellido" required className="p-2 border rounded-md" value={formData.surname} onChange={e => setFormData({...formData, surname: e.target.value})} />
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <input type="number" placeholder="Edad" required className="p-2 border rounded-md" value={formData.age} onChange={e => setFormData({...formData, age: e.target.value})} />
-          <input type="tel" placeholder="Celular" required className="p-2 border rounded-md" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <select className="p-2 border rounded-md bg-white" value={formData.canton} onChange={e => handleCantonChange(e.target.value)}>
-            {Object.keys(ZONES).map(z => <option key={z} value={z}>{z}</option>)}
-          </select>
-          <select className="p-2 border rounded-md bg-white" value={formData.sector} onChange={e => setFormData({...formData, sector: e.target.value})}>
-            {ZONES[formData.canton].map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
-        </div>
-        <input type="email" placeholder="Email" required className="w-full p-2 border rounded-md" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
-        <input type="password" placeholder="Contraseña" required className="w-full p-2 border rounded-md" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} />
-        <Button fullWidth type="submit" variant="secondary">Registrarse</Button>
-      </form>
-      <div className="mt-4 text-center text-sm">
-        <Link to="/" className="text-reto-navy hover:underline">Ya tengo cuenta</Link>
-      </div>
-    </AuthLayout>
-  );
-};
-
-const DashboardScreen = ({ user }: { user: User }) => {
-  const [warningState, setWarningState] = useState<{
-    isOpen: boolean;
-    text: string;
-    installer: Installer | null;
-  }>({ isOpen: false, text: '', installer: null });
-
-  const recordDownload = (installer: Installer) => {
-    const updatedUser = { ...user };
-    updatedUser.downloadHistory.push({
-      installerId: installer.id,
-      installerTitle: installer.title,
-      date: new Date().toISOString()
-    });
-    saveToMasterDB(updatedUser);
-  };
-
-  const handleDownloadClick = (inst: Installer) => {
-    if (inst.id === '1') { // XUPER / Peliculas
-       setWarningState({
-         isOpen: true,
-         installer: inst,
-         text: `ADVERTENCIA ⚠️
-Al darle click en el siguiente enlace, saldrá un anuncio que dice que esta instalación es dañina, dale en DESCARGAR DE TODOS MODOS, esa advertencia es porque estas una app gratuita de uso libre. Para poder instalar debes PERMITIR LA INSTALACIÓN DE FUENTES DESCONOCIDAS.
-Una vez que ingresas regístrate con un correo personal. Recuerda en la medida de las posibilidades utilizar correos secundarios para evitar spam y saturación en tu correo.`
-       });
-    } else if (inst.id === '2') { // Spotify / Música
-       setWarningState({
-         isOpen: true,
-         installer: inst,
-         text: `ADVERTENCIA ⚠️ No utilices la misma contraseña que utilizas para tu correo para que no pongas en peligro tus cuentas, utiliza contraseña diferente.
-
-INSTRUCCIONES PARA INSTALAR:
-Antes de instalar, desinstala la app oficial de Spotify
-Al ingresar regístrate como nuevo usuario con CORREO ELECTRÓNICO, no se requiere verificación.`
-       });
-    } else {
-      // Normal download logic (demos or others)
-      recordDownload(inst);
-      if (inst.downloadUrl && inst.downloadUrl !== '#') {
-        window.open(inst.downloadUrl, '_blank');
-      } else {
-        alert("Descarga iniciada (Demo)");
-      }
-    }
+  const handleDownloadClick = (installer: AppInstaller) => {
+    if (installer.downloadLink === '#') return;
+    setModalData({ isOpen: true, installer });
   };
 
   const confirmDownload = () => {
-    if (warningState.installer) {
-      recordDownload(warningState.installer);
-      window.open(warningState.installer.downloadUrl, '_blank');
-      setWarningState({ isOpen: false, text: '', installer: null });
+    if (modalData.installer) {
+      window.open(modalData.installer.downloadLink, '_blank');
+      // Update history
+      const updatedUser = { ...user, downloadHistory: [...user.downloadHistory, `${modalData.installer.name} (${new Date().toLocaleDateString()})`] };
+      storageService.saveUser(updatedUser);
+      onUpdateUser(updatedUser);
+      setModalData({ isOpen: false, installer: null });
     }
   };
 
   return (
-    <div className="space-y-6 relative">
-      <div className="bg-gradient-to-r from-reto-navy to-blue-800 rounded-2xl p-8 text-white shadow-lg">
-        <h1 className="text-3xl font-bold mb-2">¡Hola, {user.name}!</h1>
-        <p className="opacity-90">Bienvenido al panel de descargas de Febrero 2025.</p>
-      </div>
-
-      <div className="bg-orange-50 border-l-4 border-orange-500 p-4 rounded-r-xl">
-        <div className="flex items-start">
-          <AlertCircle className="text-orange-500 shrink-0 mr-3 mt-1" size={20} />
-          <div>
-            <h4 className="font-bold text-orange-800">Descargo de Responsabilidad</h4>
-            <p className="text-sm text-orange-700 mt-1 leading-relaxed">
-              El contenido proporcionado en esta sección es recopilado de fuentes externas con fines educativos. 
-              <b>Reto 33</b> no se hace responsable por el uso que cada usuario otorgue a estos instaladores ni por posibles incompatibilidades con sus dispositivos.
-              Proceda con la instalación bajo su propia responsabilidad.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <h3 className="text-xl font-bold text-gray-800 flex items-center"><Download className="mr-2"/> Instaladores Disponibles</h3>
-      <div className="grid md:grid-cols-2 gap-6">
-        {MOCK_INSTALLERS.map(inst => (
-          <div key={inst.id} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-            <div className="flex justify-between items-start mb-4">
-              <div className="p-3 bg-blue-50 rounded-lg text-reto-navy">
-                {inst.icon === 'film' ? <Film /> : inst.icon === 'music' ? <Music /> : inst.icon === 'gamepad' ? <Gamepad2 /> : <BookOpen />}
-              </div>
-              <span className="text-xs font-bold bg-green-100 text-green-700 px-2 py-1 rounded">{inst.size}</span>
+    <div className="space-y-6 animate-fade-in">
+      <h2 className="text-3xl font-bold text-brand-blue flex items-center"><Download className="mr-3" /> Zona de Descargas</h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {INSTALLERS.map(installer => (
+          <div key={installer.id} className="bg-white p-6 rounded-xl shadow-lg border-t-4 border-brand-teal flex flex-col justify-between hover:shadow-xl transition">
+            <div>
+               <div className="h-12 w-12 bg-gray-100 rounded-full flex items-center justify-center mb-4 text-brand-blue mx-auto">
+                 {installer.category === 'Movies' && '🎬'}
+                 {installer.category === 'Music' && '🎵'}
+                 {installer.category === 'Games' && '🎮'}
+                 {installer.category === 'Tutorial' && '📺'}
+               </div>
+               <h3 className="text-xl font-bold text-center mb-1">{installer.name}</h3>
+               <p className="text-gray-500 text-center text-sm mb-4">{installer.version}</p>
             </div>
-            <h4 className="text-lg font-bold text-gray-900 mb-1">{inst.title}</h4>
-            <p className="text-sm text-gray-500 mb-4">{inst.description}</p>
-            <Button fullWidth variant="outline" onClick={() => handleDownloadClick(inst)}>
-              Descargar {inst.version}
-            </Button>
+            <button 
+              onClick={() => handleDownloadClick(installer)}
+              disabled={installer.downloadLink === '#'}
+              className={`w-full py-2 rounded font-bold text-white transition ${installer.downloadLink === '#' ? 'bg-gray-400 cursor-not-allowed' : 'bg-brand-pink hover:bg-pink-600'}`}
+            >
+              {installer.buttonText}
+            </button>
           </div>
         ))}
       </div>
 
       {/* Warning Modal */}
-      {warningState.isOpen && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden">
-             <div className="bg-orange-500 p-4 text-white flex items-center justify-between">
-                <h3 className="font-bold flex items-center text-lg">
-                   <AlertTriangle className="mr-2" /> IMPORTANTE
-                </h3>
-                <button onClick={() => setWarningState({...warningState, isOpen: false})} className="hover:bg-orange-600 rounded p-1">
-                  <X size={20} />
-                </button>
-             </div>
-             <div className="p-6">
-                <p className="text-gray-800 text-sm leading-relaxed whitespace-pre-line font-medium">
-                  {warningState.text}
-                </p>
-             </div>
-             <div className="bg-gray-50 p-4 flex justify-end gap-3 border-t border-gray-200">
-                <Button variant="ghost" onClick={() => setWarningState({...warningState, isOpen: false})}>
-                  Cancelar
-                </Button>
-                <Button variant="secondary" onClick={confirmDownload} className="bg-orange-600 hover:bg-orange-700">
-                  Aceptar y Descargar
-                </Button>
-             </div>
+      {modalData.isOpen && modalData.installer && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white p-6 rounded-lg max-w-lg w-full">
+            <div className="flex items-center text-amber-500 mb-4">
+              <AlertTriangle className="w-8 h-8 mr-2" />
+              <h3 className="text-xl font-bold">ADVERTENCIA</h3>
+            </div>
+            <div className="bg-amber-50 p-4 rounded border border-amber-200 text-sm whitespace-pre-line mb-6 text-gray-800">
+              {modalData.installer.warningText}
+            </div>
+            <div className="flex justify-end space-x-3">
+              <button onClick={() => setModalData({ isOpen: false, installer: null })} className="px-4 py-2 bg-gray-200 rounded text-gray-700">Cancelar</button>
+              <button onClick={confirmDownload} className="px-4 py-2 bg-brand-blue text-white rounded hover:bg-blue-800">Aceptar y Descargar</button>
+            </div>
           </div>
         </div>
       )}
@@ -1283,286 +405,705 @@ Al ingresar regístrate como nuevo usuario con CORREO ELECTRÓNICO, no se requie
   );
 };
 
-const SurveysScreen = ({ user, surveys, onVote }: { user: User, surveys: Survey[], onVote: (sId: string, oId: string) => void }) => {
+const SurveysSection: React.FC<{ user: User, onUpdateUser: (u: User) => void }> = ({ user, onUpdateUser }) => {
+  const [surveys, setSurveys] = useState<Survey[]>([]);
+  const [activeTab, setActiveTab] = useState<'Alcalde' | 'Prefecto' | 'Obras' | 'Nacional'>('Alcalde');
+
+  useEffect(() => {
+    setSurveys(storageService.getSurveys());
+  }, []);
+
+  const handleVote = (surveyId: string, optionId: string) => {
+    if (user.surveyHistory.includes(surveyId)) {
+      alert("Ya has votado en esta encuesta.");
+      return;
+    }
+
+    const updatedSurveys = surveys.map(s => {
+      if (s.id === surveyId) {
+        return {
+          ...s,
+          options: s.options.map(o => o.id === optionId ? { ...o, votes: o.votes + 1 } : o)
+        };
+      }
+      return s;
+    });
+
+    storageService.saveSurveys(updatedSurveys);
+    setSurveys(updatedSurveys);
+
+    // Generate ticket
+    const ticket = Math.floor(Math.random() * 50000) + 1;
+    const updatedUser = { 
+      ...user, 
+      surveyHistory: [...user.surveyHistory, surveyId],
+      ticketNumber: ticket
+    };
+    storageService.saveUser(updatedUser);
+    onUpdateUser(updatedUser);
+
+    alert(`¡Voto registrado! Tu número para el sorteo semanal es: ${ticket}`);
+  };
+
+  const filteredSurveys = surveys.filter(s => s.category === activeTab && s.active);
+
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-reto-navy flex items-center"><Vote className="mr-2"/> Encuestas Activas</h1>
-      <div className="grid gap-6">
-        {surveys.filter(s => s.isActive).map(survey => {
-          const hasVoted = user.surveyHistory.some(h => h.surveyId === survey.id);
-          return (
-            <div key={survey.id} className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-              <div className="mb-4">
-                <span className="text-xs font-bold text-reto-navy bg-blue-100 px-2 py-1 rounded">{survey.category}</span>
-                <h3 className="text-lg font-bold mt-2">{survey.question}</h3>
-              </div>
-              {hasVoted ? (
-                <div className="space-y-3">
-                  {survey.options.map(opt => (
-                    <div key={opt.id} className="relative pt-1">
-                      <div className="flex justify-between text-sm font-medium text-gray-700 mb-1">
-                        <span>{opt.text}</span>
-                        <span>{opt.votes} votos</span>
-                      </div>
-                      <div className="overflow-hidden h-2 bg-gray-100 rounded">
-                        <div style={{ width: `${(opt.votes / Math.max(1, survey.options.reduce((a,b)=>a+b.votes,0))) * 100}%` }} className="h-full bg-reto-navy opacity-75"></div>
-                      </div>
-                    </div>
-                  ))}
-                  <p className="text-center text-sm text-green-600 font-bold mt-4">¡Gracias por tu voto!</p>
+    <div className="space-y-6 animate-fade-in">
+      <h2 className="text-3xl font-bold text-brand-blue flex items-center"><Vote className="mr-3" /> Encuestas</h2>
+      
+      {/* Tabs */}
+      <div className="flex flex-wrap gap-2">
+        {(['Alcalde', 'Prefecto', 'Obras', 'Nacional'] as const).map(cat => (
+          <button
+            key={cat}
+            onClick={() => setActiveTab(cat)}
+            className={`px-4 py-2 rounded-full font-semibold transition ${activeTab === cat ? 'bg-brand-teal text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+          >
+            {cat}
+          </button>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 gap-6">
+        {filteredSurveys.length === 0 && <p className="text-gray-500 italic">No hay encuestas activas en esta categoría.</p>}
+        {filteredSurveys.map(survey => (
+          <div key={survey.id} className="bg-white p-6 rounded-xl shadow-lg">
+            <h3 className="text-xl font-bold mb-4 text-brand-blue">{survey.title}</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {survey.options.map(opt => (
+                <div key={opt.id} className={`border rounded-lg p-4 cursor-pointer transition hover:border-brand-teal ${user.surveyHistory.includes(survey.id) ? 'opacity-75' : ''}`}
+                     onClick={() => !user.surveyHistory.includes(survey.id) && handleVote(survey.id, opt.id)}>
+                   {opt.imageUrl && (
+                     <img src={opt.imageUrl} alt={opt.label} className="w-full h-32 object-cover rounded mb-3 bg-gray-100" />
+                   )}
+                   <div className="text-center font-bold">{opt.label}</div>
+                   {user.surveyHistory.includes(survey.id) && (
+                     <div className="text-center text-sm text-brand-pink font-bold mt-2">{opt.votes} Votos</div>
+                   )}
                 </div>
-              ) : (
-                <div className="space-y-3">
-                  {survey.options.map(opt => (
-                    <button 
-                      key={opt.id} 
-                      onClick={() => onVote(survey.id, opt.id)}
-                      className="w-full text-left p-4 rounded-lg border border-gray-200 hover:border-reto-navy hover:bg-blue-50 transition-all group"
-                    >
-                      <div className="flex items-center">
-                        {opt.image && <img src={opt.image} alt="" className="w-10 h-10 rounded-full mr-3 object-cover"/>}
-                        <span className="font-medium group-hover:text-reto-navy">{opt.text}</span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
+              ))}
             </div>
-          );
-        })}
+            {user.surveyHistory.includes(survey.id) && (
+               <div className="mt-4 bg-green-100 text-green-800 p-2 rounded text-center text-sm">Ya participaste en esta encuesta.</div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      <div className="bg-brand-blue text-white p-6 rounded-xl mt-8">
+        <h3 className="text-xl font-bold mb-2">¡Participa y Gana!</h3>
+        <p>Cada vez que completas una encuesta, generas un ticket para el sorteo semanal.</p>
+        <div className="mt-4 text-brand-yellow font-bold text-2xl">
+          Tus Tickets Acumulados: {user.surveyHistory.length}
+        </div>
       </div>
     </div>
   );
 };
 
-const WinnersScreen = () => {
-  const [tab, setTab] = useState<'prizes' | 'history'>('prizes');
+const PrizesSection: React.FC<{ viewMode: 'prizes' | 'winners' }> = ({ viewMode }) => {
+  const [prizes, setPrizes] = useState<Prize[]>([]);
+  const winners = storageService.getWinners();
+
+  useEffect(() => {
+    setPrizes(storageService.getPrizes());
+  }, []);
+  
   return (
-    <div className="space-y-6">
-      <div className="flex space-x-4 border-b border-gray-200">
-        <button onClick={() => setTab('prizes')} className={`pb-2 px-1 ${tab === 'prizes' ? 'border-b-2 border-reto-navy font-bold text-reto-navy' : 'text-gray-500'}`}>Premios de la Semana</button>
-        <button onClick={() => setTab('history')} className={`pb-2 px-1 ${tab === 'history' ? 'border-b-2 border-reto-navy font-bold text-reto-navy' : 'text-gray-500'}`}>Ganadores Anteriores</button>
-      </div>
-      {tab === 'prizes' ? (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-          {INITIAL_PRIZES.map(prize => (
-            <div key={prize.id} className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100 group">
-              <div className="aspect-square bg-gray-100 relative overflow-hidden">
-                <img src={prize.image} alt={prize.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-              </div>
-              <div className="p-4">
-                <span className="text-[10px] uppercase font-bold text-gray-400">{prize.type}</span>
-                <h4 className="font-bold text-gray-900 leading-tight">{prize.name}</h4>
-              </div>
-            </div>
-          ))}
+    <div className="space-y-8 animate-fade-in">
+       {viewMode === 'prizes' && (
+         <div>
+           <h2 className="text-3xl font-bold text-brand-blue flex items-center mb-6"><Gift className="mr-3 text-brand-gold" /> Premios de la Semana</h2>
+           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+              {prizes.map(prize => (
+                <div key={prize.id} className="bg-white p-4 rounded-lg shadow border-l-4 border-brand-gold hover:shadow-lg transition">
+                  {prize.image && (
+                    <img src={prize.image} alt={prize.name} className="w-full h-32 object-cover rounded mb-3 bg-gray-100" />
+                  )}
+                  <h4 className="font-bold text-lg">{prize.name}</h4>
+                  <p className="text-gray-600 text-sm">{prize.description}</p>
+                </div>
+              ))}
+           </div>
+         </div>
+       )}
+
+       {viewMode === 'winners' && (
+         <div className="bg-white p-6 rounded-xl shadow-lg">
+           <h2 className="text-3xl font-bold text-brand-blue flex items-center mb-6"><Trophy className="mr-3 text-brand-gold" /> Muro de la Fama</h2>
+           <h3 className="text-xl font-semibold mb-4 text-gray-700">Ganadores Anteriores</h3>
+           {winners.length === 0 ? (
+             <p className="text-gray-500 italic">Aún no hay ganadores registrados en el sistema.</p>
+           ) : (
+             <div className="overflow-x-auto">
+               <table className="w-full text-left">
+                 <thead className="bg-gray-50">
+                   <tr>
+                     <th className="p-3">Fecha</th>
+                     <th className="p-3">Ganador</th>
+                     <th className="p-3">Premio</th>
+                     <th className="p-3">Boleto #</th>
+                   </tr>
+                 </thead>
+                 <tbody>
+                   {winners.map(w => (
+                     <tr key={w.id} className="border-t">
+                       <td className="p-3">{w.date}</td>
+                       <td className="p-3 font-semibold">{w.winnerName}</td>
+                       <td className="p-3">{w.prizeName}</td>
+                       <td className="p-3 text-brand-pink">{w.ticketNumber}</td>
+                     </tr>
+                   ))}
+                 </tbody>
+               </table>
+             </div>
+           )}
+         </div>
+       )}
+    </div>
+  );
+};
+
+const PrivacyPolicy: React.FC = () => (
+  <div className="bg-white p-8 rounded-xl shadow-lg max-w-4xl mx-auto my-8">
+    <h1 className="text-2xl font-bold mb-4">Política de Privacidad</h1>
+    <div className="prose text-sm text-gray-700">
+      <p><strong>Última actualización:</strong> 2023</p>
+      <p>GTPlay Ecuador respeta su privacidad. Esta Política de Privacidad describe cómo recopilamos, usamos y protegemos su información personal.</p>
+      
+      <h3 className="font-bold mt-4">1. Recopilación de Información</h3>
+      <p>Recopilamos información que usted proporciona al registrarse, como su nombre, correo electrónico, número de teléfono y ubicación.</p>
+
+      <h3 className="font-bold mt-4">2. Uso de la Información</h3>
+      <p>Utilizamos su información para administrar sorteos, mejorar nuestros servicios y comunicarnos con usted.</p>
+
+      <h3 className="font-bold mt-4">3. Compartir Información</h3>
+      <p>No vendemos ni compartimos su información personal con terceros, excepto cuando sea necesario para cumplir con la ley.</p>
+      
+      <h3 className="font-bold mt-4">4. Seguridad</h3>
+      <p>Implementamos medidas de seguridad para proteger sus datos personales.</p>
+    </div>
+  </div>
+);
+
+// 3. Admin Panel
+const AdminPanel: React.FC = () => {
+  const [activeView, setActiveView] = useState<'stats' | 'surveys' | 'prizes' | 'admins'>('stats');
+  const [users, setUsers] = useState<User[]>([]);
+  const [surveys, setSurveys] = useState<Survey[]>([]);
+  const [prizes, setPrizes] = useState<Prize[]>([]);
+  const [newAdminEmail, setNewAdminEmail] = useState('');
+  
+  // Survey Form State
+  const [newSurveyTitle, setNewSurveyTitle] = useState('');
+  const [newSurveyCat, setNewSurveyCat] = useState<'Alcalde' | 'Prefecto' | 'Obras' | 'Nacional'>('Alcalde');
+  const [surveyOptions, setSurveyOptions] = useState<SurveyOption[]>([{ id: '1', label: '', votes: 0 }]);
+
+  // Prize Form State
+  const [newPrizeName, setNewPrizeName] = useState('');
+  const [newPrizeDesc, setNewPrizeDesc] = useState('');
+  const [newPrizeImage, setNewPrizeImage] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    setUsers(storageService.getUsers());
+    setSurveys(storageService.getSurveys());
+    setPrizes(storageService.getPrizes());
+  }, []);
+
+  const downloadExcel = () => {
+    // Simulate CSV download
+    const headers = ["ID", "Nombre", "Apellido", "Edad", "Telefono", "Zona", "Sector", "Email"];
+    const rows = users.map(u => [u.id, u.firstName, u.lastName, u.age, u.phone, u.zone, u.sector, u.email]);
+    
+    let csvContent = "data:text/csv;charset=utf-8," 
+        + headers.join(",") + "\n" 
+        + rows.map(e => e.join(",")).join("\n");
+        
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "participantes_gtplay.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const addAdmin = () => {
+    const userToPromote = users.find(u => u.email === newAdminEmail);
+    if (userToPromote) {
+      userToPromote.role = 'admin';
+      storageService.saveUser(userToPromote);
+      setUsers(storageService.getUsers());
+      setNewAdminEmail('');
+      alert(`${userToPromote.firstName} es ahora administrador.`);
+    } else {
+      alert("Usuario no encontrado.");
+    }
+  };
+
+  const handleImageUpload = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const newOpts = [...surveyOptions];
+        newOpts[index].imageUrl = ev.target?.result as string;
+        setSurveyOptions(newOpts);
+      };
+      reader.readAsDataURL(e.target.files[0]);
+    }
+  };
+
+  const createSurvey = () => {
+    const newSurvey: Survey = {
+      id: Date.now().toString(),
+      title: newSurveyTitle,
+      category: newSurveyCat,
+      active: true,
+      options: surveyOptions
+    };
+    const updated = [...surveys, newSurvey];
+    storageService.saveSurveys(updated);
+    setSurveys(updated);
+    alert("Encuesta creada");
+    // Reset form
+    setNewSurveyTitle('');
+    setSurveyOptions([{ id: '1', label: '', votes: 0 }]);
+  };
+
+  // Prize Functions
+  const handlePrizeImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        setNewPrizeImage(ev.target?.result as string);
+      };
+      reader.readAsDataURL(e.target.files[0]);
+    }
+  };
+
+  const addPrize = () => {
+    if (!newPrizeName || !newPrizeDesc) {
+      alert("Por favor ingrese nombre y descripción del premio");
+      return;
+    }
+    const newPrize: Prize = {
+      id: Date.now().toString(),
+      name: newPrizeName,
+      description: newPrizeDesc,
+      image: newPrizeImage
+    };
+    const updated = [newPrize, ...prizes].slice(0, 10); // Keep max 10 latest
+    storageService.savePrizes(updated);
+    setPrizes(updated);
+    setNewPrizeName('');
+    setNewPrizeDesc('');
+    setNewPrizeImage(undefined);
+  };
+
+  const deletePrize = (id: string) => {
+    const updated = prizes.filter(p => p.id !== id);
+    storageService.savePrizes(updated);
+    setPrizes(updated);
+  };
+
+  return (
+    <div className="bg-white min-h-screen">
+      <div className="bg-gray-800 text-white p-4 flex justify-between items-center overflow-x-auto">
+        <h2 className="text-xl font-bold whitespace-nowrap mr-4">Panel de Administración</h2>
+        <div className="flex space-x-4">
+          <button onClick={() => setActiveView('stats')} className={activeView === 'stats' ? 'text-brand-yellow font-bold underline' : 'hover:text-gray-300'}>Estadísticas</button>
+          <button onClick={() => setActiveView('surveys')} className={activeView === 'surveys' ? 'text-brand-yellow font-bold underline' : 'hover:text-gray-300'}>Encuestas</button>
+          <button onClick={() => setActiveView('prizes')} className={activeView === 'prizes' ? 'text-brand-yellow font-bold underline' : 'hover:text-gray-300'}>Premios</button>
+          <button onClick={() => setActiveView('admins')} className={activeView === 'admins' ? 'text-brand-yellow font-bold underline' : 'hover:text-gray-300'}>Usuarios/Admins</button>
         </div>
-      ) : (
-        <div className="space-y-4">
-          {PAST_DRAWS.map(draw => (
-            <div key={draw.id} className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-              <h3 className="font-bold text-lg text-reto-navy mb-4">Sorteo del {draw.date}</h3>
-              <div className="grid md:grid-cols-2 gap-4">
-                {draw.winners.map((winner, idx) => (
-                  <div key={idx} className="flex items-center p-3 bg-gray-50 rounded-lg">
-                    <Trophy className="text-reto-gold mr-3" size={20} />
+      </div>
+
+      <div className="p-8 max-w-6xl mx-auto">
+        {activeView === 'stats' && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="bg-blue-100 p-6 rounded-lg">
+              <h3 className="text-xl font-bold">Total Usuarios</h3>
+              <p className="text-4xl">{users.length}</p>
+            </div>
+            <div className="bg-green-100 p-6 rounded-lg">
+               <h3 className="text-xl font-bold">Encuestas Activas</h3>
+               <p className="text-4xl">{surveys.filter(s => s.active).length}</p>
+            </div>
+            <div className="bg-purple-100 p-6 rounded-lg flex flex-col justify-center">
+               <button onClick={downloadExcel} className="bg-brand-blue text-white py-2 px-4 rounded hover:bg-blue-800 flex items-center justify-center">
+                 <Download className="mr-2" /> Descargar Base de Datos
+               </button>
+            </div>
+          </div>
+        )}
+
+        {activeView === 'admins' && (
+          <div className="space-y-6">
+             <div className="bg-gray-50 p-6 rounded-lg border">
+               <h3 className="font-bold mb-2">Agregar Nuevo Administrador</h3>
+               <div className="flex gap-2">
+                 <input 
+                   placeholder="Email del usuario existente" 
+                   className="border p-2 flex-grow rounded" 
+                   value={newAdminEmail}
+                   onChange={e => setNewAdminEmail(e.target.value)}
+                 />
+                 <button onClick={addAdmin} className="bg-brand-teal text-white px-4 rounded">Promover</button>
+               </div>
+               <p className="text-xs text-gray-500 mt-2">El usuario debe estar registrado previamente en la App.</p>
+             </div>
+             
+             <div>
+               <h3 className="font-bold mb-4">Lista de Usuarios</h3>
+               <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead><tr className="bg-gray-200"><th className="p-2">Nombre</th><th className="p-2">Email</th><th className="p-2">Rol</th></tr></thead>
+                    <tbody>
+                      {users.map(u => (
+                        <tr key={u.id} className="border-b">
+                          <td className="p-2">{u.firstName} {u.lastName}</td>
+                          <td className="p-2">{u.email}</td>
+                          <td className="p-2 font-bold">{u.role}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+               </div>
+             </div>
+          </div>
+        )}
+
+        {activeView === 'surveys' && (
+          <div className="space-y-8">
+            <div className="bg-gray-50 p-6 rounded-lg shadow-inner">
+               <h3 className="text-lg font-bold mb-4 text-brand-blue">Crear Nueva Encuesta</h3>
+               <div className="space-y-4">
+                 <input 
+                   placeholder="Título de la Encuesta" 
+                   className="w-full p-2 border rounded"
+                   value={newSurveyTitle}
+                   onChange={e => setNewSurveyTitle(e.target.value)}
+                 />
+                 <select 
+                  className="w-full p-2 border rounded"
+                  value={newSurveyCat}
+                  onChange={e => setNewSurveyCat(e.target.value as any)}
+                 >
+                   <option value="Alcalde">Alcalde</option>
+                   <option value="Prefecto">Prefecto</option>
+                   <option value="Obras">Obras Prioritarias</option>
+                   <option value="Nacional">Nacional</option>
+                 </select>
+
+                 <div className="space-y-2">
+                   <p className="font-semibold">Opciones:</p>
+                   {surveyOptions.map((opt, idx) => (
+                     <div key={idx} className="flex gap-2 items-center">
+                       <input 
+                         placeholder={`Opción ${idx + 1}`} 
+                         className="flex-grow p-2 border rounded"
+                         value={opt.label}
+                         onChange={e => {
+                           const newOpts = [...surveyOptions];
+                           newOpts[idx].label = e.target.value;
+                           setSurveyOptions(newOpts);
+                         }}
+                       />
+                       {(newSurveyCat === 'Alcalde' || newSurveyCat === 'Prefecto') && (
+                         <input 
+                           type="file" 
+                           accept="image/*"
+                           className="text-xs"
+                           onChange={e => handleImageUpload(idx, e)}
+                         />
+                       )}
+                     </div>
+                   ))}
+                   <button 
+                     onClick={() => setSurveyOptions([...surveyOptions, { id: Date.now().toString(), label: '', votes: 0 }])}
+                     className="text-sm text-brand-blue underline"
+                   >
+                     + Agregar Opción
+                   </button>
+                 </div>
+                 
+                 <button onClick={createSurvey} className="bg-brand-pink text-white px-6 py-2 rounded font-bold">Publicar Encuesta</button>
+               </div>
+            </div>
+
+            <div>
+              <h3 className="font-bold mb-4">Encuestas Existentes</h3>
+              {surveys.map(s => (
+                <div key={s.id} className="border p-4 mb-2 rounded flex justify-between items-center bg-white">
+                  <div>
+                    <span className="font-bold">{s.title}</span> <span className="text-xs bg-gray-200 px-2 rounded">{s.category}</span>
+                    <div className="text-xs text-gray-500 mt-1">Votos totales: {s.options.reduce((acc, curr) => acc + curr.votes, 0)}</div>
+                  </div>
+                  <button 
+                    onClick={() => {
+                      const updated = surveys.filter(sv => sv.id !== s.id);
+                      storageService.saveSurveys(updated);
+                      setSurveys(updated);
+                    }}
+                    className="text-red-500 hover:text-red-700"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {activeView === 'prizes' && (
+          <div className="space-y-8">
+            <div className="bg-gray-50 p-6 rounded-lg shadow-inner">
+               <h3 className="text-lg font-bold mb-4 text-brand-gold">Agregar Nuevo Premio de la Semana</h3>
+               <div className="space-y-4">
+                 <input 
+                   placeholder="Nombre del Premio" 
+                   className="w-full p-2 border rounded"
+                   value={newPrizeName}
+                   onChange={e => setNewPrizeName(e.target.value)}
+                 />
+                 <input 
+                   placeholder="Descripción" 
+                   className="w-full p-2 border rounded"
+                   value={newPrizeDesc}
+                   onChange={e => setNewPrizeDesc(e.target.value)}
+                 />
+                 <div>
+                   <label className="block text-sm font-medium mb-1">Imagen Referencial</label>
+                   <input 
+                      type="file" 
+                      accept="image/*"
+                      onChange={handlePrizeImageUpload}
+                      className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-brand-gold file:text-white hover:file:bg-yellow-600"
+                   />
+                   {newPrizeImage && <img src={newPrizeImage} alt="Preview" className="h-24 w-24 object-cover mt-2 rounded" />}
+                 </div>
+                 <button onClick={addPrize} className="bg-brand-blue text-white px-6 py-2 rounded font-bold flex items-center">
+                   <Plus size={16} className="mr-2" /> Agregar Premio
+                 </button>
+               </div>
+            </div>
+
+            <div>
+              <h3 className="font-bold mb-4">Lista de Premios Actuales</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {prizes.map(p => (
+                  <div key={p.id} className="border p-4 rounded bg-white flex flex-col justify-between shadow-sm">
                     <div>
-                      <p className="font-bold text-gray-900">{winner.userName}</p>
-                      <p className="text-xs text-gray-500">Ganó: {winner.prizeName}</p>
+                      {p.image ? (
+                        <img src={p.image} alt={p.name} className="w-full h-32 object-cover rounded mb-2" />
+                      ) : (
+                        <div className="w-full h-32 bg-gray-100 rounded mb-2 flex items-center justify-center text-gray-400">
+                          <ImageIcon />
+                        </div>
+                      )}
+                      <h4 className="font-bold text-brand-blue">{p.name}</h4>
+                      <p className="text-sm text-gray-600">{p.description}</p>
                     </div>
+                    <button 
+                      onClick={() => deletePrize(p.id)}
+                      className="mt-3 text-red-500 hover:text-red-700 text-sm flex items-center justify-end"
+                    >
+                      <Trash2 size={16} className="mr-1" /> Eliminar
+                    </button>
                   </div>
                 ))}
               </div>
             </div>
-          ))}
-        </div>
-      )}
+          </div>
+        )}
+      </div>
     </div>
   );
 };
 
-const DownloadsScreen = ({ user }: { user: User }) => (
-  <div className="space-y-6">
-    <h1 className="text-2xl font-bold text-reto-navy flex items-center"><History className="mr-2"/> Historial de Descargas</h1>
-    {user.downloadHistory.length === 0 ? (
-      <div className="text-center py-12 bg-white rounded-xl border border-dashed border-gray-300">
-        <Download className="mx-auto h-12 w-12 text-gray-300 mb-3" />
-        <h3 className="text-lg font-medium text-gray-900">No hay descargas aún</h3>
-        <p className="text-gray-500">Visita el panel principal para descargar contenido.</p>
-      </div>
-    ) : (
-      <div className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-200">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Instalador</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {user.downloadHistory.map((dl, i) => (
-              <tr key={i}>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{dl.installerTitle}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(dl.date).toLocaleString()}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    )}
-  </div>
-);
+// --- Main App Layout ---
 
-const ProfileScreen = ({ user, onUpdate }: { user: User, onUpdate: (u: User) => void }) => {
-  const [formData, setFormData] = useState({ name: user.name, surname: user.surname, phone: user.phone });
-  
-  const handleSave = () => {
-    const updated = { ...user, ...formData };
-    saveToMasterDB(updated);
-    onUpdate(updated);
-    alert('Perfil actualizado');
-  };
+type SubView = 'menu' | 'downloads' | 'surveys' | 'prizes' | 'winners';
 
+const DashboardMenu: React.FC<{ onSelect: (v: SubView) => void }> = ({ onSelect }) => {
   return (
-    <div className="max-w-2xl mx-auto bg-white p-8 rounded-xl shadow-sm border border-gray-200">
-      <h1 className="text-2xl font-bold text-reto-navy mb-6">Mi Perfil</h1>
-      <div className="space-y-4">
-        <div>
-           <label className="block text-sm font-medium text-gray-700">Email</label>
-           <input disabled value={user.email} className="w-full mt-1 p-2 border rounded-md bg-gray-50 text-gray-500" />
-        </div>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Nombre</label>
-            <input value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full mt-1 p-2 border rounded-md" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Apellido</label>
-            <input value={formData.surname} onChange={e => setFormData({...formData, surname: e.target.value})} className="w-full mt-1 p-2 border rounded-md" />
-          </div>
-        </div>
-        <div>
-           <label className="block text-sm font-medium text-gray-700">Teléfono</label>
-           <input value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} className="w-full mt-1 p-2 border rounded-md" />
-        </div>
-        <Button onClick={handleSave} className="mt-4">Guardar Cambios</Button>
-      </div>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto py-8">
+      <button 
+        onClick={() => onSelect('downloads')}
+        className="bg-brand-teal text-white p-8 rounded-2xl shadow-xl hover:scale-105 transition duration-300 flex flex-col items-center justify-center h-64 group"
+      >
+        <Download size={64} className="mb-4 group-hover:animate-bounce" />
+        <h3 className="text-2xl font-bold">Zona de Descargas</h3>
+        <p className="mt-2 text-center opacity-90">Apps, Películas y Música Gratis</p>
+      </button>
+
+      <button 
+        onClick={() => onSelect('surveys')}
+        className="bg-brand-blue text-white p-8 rounded-2xl shadow-xl hover:scale-105 transition duration-300 flex flex-col items-center justify-center h-64 group"
+      >
+        <Vote size={64} className="mb-4 group-hover:rotate-12 transition-transform" />
+        <h3 className="text-2xl font-bold">Encuestas</h3>
+        <p className="mt-2 text-center opacity-90">Participa y Gana Tickets</p>
+      </button>
+
+      <button 
+        onClick={() => onSelect('prizes')}
+        className="bg-brand-gold text-white p-8 rounded-2xl shadow-xl hover:scale-105 transition duration-300 flex flex-col items-center justify-center h-64 group"
+      >
+        <Gift size={64} className="mb-4 group-hover:scale-110 transition-transform" />
+        <h3 className="text-2xl font-bold">Premios de la Semana</h3>
+        <p className="mt-2 text-center opacity-90">Mira lo que puedes ganar</p>
+      </button>
+
+      <button 
+        onClick={() => onSelect('winners')}
+        className="bg-brand-pink text-white p-8 rounded-2xl shadow-xl hover:scale-105 transition duration-300 flex flex-col items-center justify-center h-64 group"
+      >
+        <Trophy size={64} className="mb-4 group-hover:text-yellow-200 transition-colors" />
+        <h3 className="text-2xl font-bold">Muro de la Fama</h3>
+        <p className="mt-2 text-center opacity-90">Ganadores de sorteos anteriores</p>
+      </button>
     </div>
   );
 };
 
 const App: React.FC = () => {
-  const [user, setUser] = useState<User | null>(() => {
-    const saved = localStorage.getItem('reto33_session');
-    return saved ? JSON.parse(saved) : null;
-  });
-  
-  const [surveys, setSurveys] = useState<Survey[]>(() => {
-    const saved = localStorage.getItem(SURVEYS_KEY);
-    return saved ? JSON.parse(saved) : MOCK_SURVEYS;
-  });
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [currentView, setCurrentView] = useState<'home' | 'profile' | 'privacy'>('home');
+  const [subView, setSubView] = useState<SubView>('menu');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
-    if (user) {
-      localStorage.setItem('reto33_session', JSON.stringify(user));
-    } else {
-      localStorage.removeItem('reto33_session');
-    }
-  }, [user]);
+    // Check session
+    const stored = storageService.getCurrentUser();
+    if (stored) setCurrentUser(stored);
+  }, []);
 
-  useEffect(() => {
-    localStorage.setItem(SURVEYS_KEY, JSON.stringify(surveys));
-  }, [surveys]);
-
-  const handleLogin = (u: User) => setUser(u);
-  const handleRegister = (u: User) => setUser(u);
-  const handleLogout = () => setUser(null);
-  
-  const handleUpdateSurvey = (updatedSurvey: Survey) => {
-    setSurveys(surveys.map(s => s.id === updatedSurvey.id ? updatedSurvey : s));
+  const handleLogout = () => {
+    storageService.setCurrentUser(null);
+    setCurrentUser(null);
+    setSubView('menu');
   };
 
-  const handleAddSurvey = (newSurvey: Survey) => {
-    setSurveys([newSurvey, ...surveys]);
+  const handleUserUpdate = (updated: User) => {
+    storageService.saveUser(updated);
+    setCurrentUser(updated);
   };
 
-  const handleVote = (surveyId: string, optionId: string) => {
-    if (!user) return;
-    const updatedSurveys = surveys.map(s => {
-      if (s.id !== surveyId) return s;
-      return {
-        ...s,
-        options: s.options.map(o => o.id === optionId ? { ...o, votes: o.votes + 1 } : o)
-      };
-    });
-    setSurveys(updatedSurveys);
-    
-    const entryNumber = Math.floor(Math.random() * 15000) + 1;
-
-    const updatedUser = { 
-      ...user, 
-      surveyHistory: [...user.surveyHistory, { 
-        surveyId, 
-        question: updatedSurveys.find(s => s.id === surveyId)?.question || '', 
-        date: new Date().toISOString(),
-        entryNumber
-      }] 
-    };
-    setUser(updatedUser);
-    saveToMasterDB(updatedUser);
+  const resetHome = () => {
+    setCurrentView('home');
+    setSubView('menu');
+    setMobileMenuOpen(false);
   };
 
+  if (!currentUser) {
+    return <AuthView onLogin={user => {
+      storageService.setCurrentUser(user);
+      setCurrentUser(user);
+    }} />;
+  }
+
+  if (currentUser.role === 'admin') {
+    return (
+      <div className="min-h-screen">
+         <div className="bg-white shadow p-4 flex justify-between items-center">
+            <AppLogo />
+            <button onClick={handleLogout} className="flex items-center text-red-500"><LogOut size={16} className="mr-1"/> Salir</button>
+         </div>
+         <AdminPanel />
+      </div>
+    );
+  }
+
+  // User Dashboard Layout
   return (
-    <HashRouter>
-      <Routes>
-        <Route path="/" element={!user ? <LoginScreen onLogin={handleLogin} /> : <Navigate to="/dashboard" />} />
-        <Route path="/register" element={!user ? <RegisterScreen onRegister={handleRegister} /> : <Navigate to="/dashboard" />} />
-        
-        <Route path="/dashboard" element={user ? (
-            <MainLayout user={user} onLogout={handleLogout}>
-              <DashboardScreen user={user} />
-            </MainLayout>
-          ) : <Navigate to="/" />} 
-        />
-        
-        <Route path="/admin" element={user && user.role === 'admin' ? (
-            <MainLayout user={user} onLogout={handleLogout}>
-              <AdminDashboard surveys={surveys} onUpdateSurvey={handleUpdateSurvey} onAddSurvey={handleAddSurvey} />
-            </MainLayout>
-          ) : <Navigate to="/" />} 
-        />
+    <div className="min-h-screen bg-gray-50 flex flex-col font-sans text-gray-800">
+      {/* Header */}
+      <header className="bg-white shadow-md sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
+          <div onClick={resetHome} className="cursor-pointer">
+            <AppLogo />
+          </div>
+          
+          {/* Desktop Nav */}
+          <nav className="hidden md:flex space-x-6 items-center">
+            <button onClick={resetHome} className={`font-medium ${currentView === 'home' ? 'text-brand-teal' : 'text-gray-600'}`}>Inicio</button>
+            <button onClick={() => setCurrentView('profile')} className={`font-medium ${currentView === 'profile' ? 'text-brand-teal' : 'text-gray-600'}`}>Mi Perfil</button>
+            <button onClick={handleLogout} className="text-red-500 font-medium flex items-center"><LogOut className="w-4 h-4 mr-1" /> Salir</button>
+          </nav>
 
-        <Route path="/surveys" element={user ? (
-            <MainLayout user={user} onLogout={handleLogout}>
-              <SurveysScreen user={user} surveys={surveys} onVote={handleVote} />
-            </MainLayout>
-          ) : <Navigate to="/" />} 
-        />
-        
-        <Route path="/downloads" element={user ? (
-            <MainLayout user={user} onLogout={handleLogout}>
-              <DownloadsScreen user={user} />
-            </MainLayout>
-          ) : <Navigate to="/" />} 
-        />
-        
-        <Route path="/winners" element={user ? (
-            <MainLayout user={user} onLogout={handleLogout}>
-              <WinnersScreen />
-            </MainLayout>
-          ) : <Navigate to="/" />} 
-        />
-        
-        <Route path="/profile" element={user ? (
-            <MainLayout user={user} onLogout={handleLogout}>
-              <ProfileScreen user={user} onUpdate={setUser} />
-            </MainLayout>
-          ) : <Navigate to="/" />} 
-        />
+          {/* Mobile Menu Button */}
+          <button className="md:hidden" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+            {mobileMenuOpen ? <X /> : <Menu />}
+          </button>
+        </div>
 
-        <Route path="/privacy" element={<PrivacyPolicyScreen />} />
-      </Routes>
-    </HashRouter>
+        {/* Mobile Nav */}
+        {mobileMenuOpen && (
+           <div className="md:hidden bg-white border-t p-4 flex flex-col space-y-3 shadow-lg">
+             <button onClick={resetHome}>Inicio</button>
+             <button onClick={() => { setCurrentView('profile'); setMobileMenuOpen(false); }}>Mi Perfil</button>
+             <button onClick={handleLogout} className="text-red-500 text-left">Salir</button>
+           </div>
+        )}
+      </header>
+
+      {/* Main Content */}
+      <main className="flex-grow max-w-7xl mx-auto px-4 py-8 w-full">
+        {currentView === 'privacy' && <PrivacyPolicy />}
+        
+        {currentView === 'profile' && (
+          <ProfileSection user={currentUser} onUpdate={handleUserUpdate} onLogout={handleLogout} />
+        )}
+
+        {currentView === 'home' && (
+          <div>
+            {/* Show Back Button if not in menu */}
+            {subView !== 'menu' && (
+              <button 
+                onClick={() => setSubView('menu')}
+                className="mb-6 flex items-center text-gray-600 hover:text-brand-blue font-semibold transition"
+              >
+                <ArrowLeft className="mr-2" /> Volver al Menú Principal
+              </button>
+            )}
+
+            {subView === 'menu' && (
+              <DashboardMenu onSelect={setSubView} />
+            )}
+
+            {subView === 'downloads' && (
+              <InstallersSection user={currentUser} onUpdateUser={handleUserUpdate} />
+            )}
+
+            {subView === 'surveys' && (
+              <SurveysSection user={currentUser} onUpdateUser={handleUserUpdate} />
+            )}
+
+            {subView === 'prizes' && (
+              <PrizesSection viewMode="prizes" />
+            )}
+
+            {subView === 'winners' && (
+              <PrizesSection viewMode="winners" />
+            )}
+          </div>
+        )}
+      </main>
+
+      {/* Footer */}
+      <footer className="bg-gray-900 text-white py-8">
+        <div className="max-w-7xl mx-auto px-4 text-center space-y-4">
+          <div className="flex justify-center">
+            <div className="bg-white p-4 rounded-xl">
+              <AppLogo />
+            </div>
+          </div>
+          <p className="text-sm text-gray-400">© 2026 GTPlay Ecuador. Todos los derechos reservados.</p>
+          <button onClick={() => setCurrentView('privacy')} className="text-xs text-gray-500 hover:text-white underline">Política de Privacidad</button>
+        </div>
+      </footer>
+    </div>
   );
 };
 
