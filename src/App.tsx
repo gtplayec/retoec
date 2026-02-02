@@ -1186,9 +1186,16 @@ const App: React.FC = () => {
     });
     setSurveys(updatedSurveys);
     
+    const entryNumber = Math.floor(Math.random() * 15000) + 1;
+
     const updatedUser = { 
       ...user, 
-      surveyHistory: [...user.surveyHistory, { surveyId, question: updatedSurveys.find(s => s.id === surveyId)?.question || '', date: new Date().toISOString() }] 
+      surveyHistory: [...user.surveyHistory, { 
+        surveyId, 
+        question: updatedSurveys.find(s => s.id === surveyId)?.question || '', 
+        date: new Date().toISOString(),
+        entryNumber
+      }] 
     };
     setUser(updatedUser);
     saveToMasterDB(updatedUser);
