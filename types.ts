@@ -9,10 +9,16 @@ export interface User {
   zone: Zone;
   sector: string;
   email: string; // Used for unique ID mainly
+  password?: string; // Field for authentication
   role: 'user' | 'admin';
   downloadHistory: string[];
   surveyHistory: string[]; // IDs of surveys taken
   ticketNumber?: number; // Last ticket number generated
+  
+  // Fields for "Los 33"
+  isMemberOf33?: boolean;
+  bio?: string;
+  cvPdf?: string; // Base64 string of the PDF
 }
 
 export interface SurveyOption {
