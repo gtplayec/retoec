@@ -1,13 +1,13 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { Survey } from "../types";
 
-const apiKey = process.env.API_KEY || '';
-const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
+// Always use named parameter for apiKey and assume process.env.API_KEY is available.
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const generateWeeklySurvey = async (): Promise<Survey | null> => {
-  if (!ai) return null;
-
   try {
+    // Using gemini-3-flash-preview as per guidelines for general text tasks.
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: "Generate a new engaging weekly survey question for professionals about technology trends or workplace renovation. Provide 4 distinct options.",
@@ -31,6 +31,7 @@ export const generateWeeklySurvey = async (): Promise<Survey | null> => {
       }
     });
 
+    // response.text is a getter property, not a method.
     const data = JSON.parse(response.text || '{}');
     
     if (data.question && data.options) {

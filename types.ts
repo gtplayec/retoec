@@ -1,3 +1,4 @@
+
 export interface DownloadRecord {
   installerId: string;
   installerTitle: string;
@@ -8,6 +9,7 @@ export interface SurveyRecord {
   surveyId: string;
   question: string;
   date: string;
+  entryNumber: number; // Nuevo campo para el número del 1 al 15000
 }
 
 export interface User {
@@ -18,7 +20,7 @@ export interface User {
   phone: string;
   sector: string;
   email: string;
-  password?: string;      // New password field
+  password?: string;
   role: 'user' | 'admin'; 
   registeredAt: string;   
   lastLogin: string;      
@@ -43,7 +45,7 @@ export interface SurveyOption {
   id: string;
   text: string;
   votes: number;
-  image?: string; // Optional image URL for candidates
+  image?: string; 
 }
 
 export interface Survey {

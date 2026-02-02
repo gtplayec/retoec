@@ -1,38 +1,36 @@
+
 import React, { useState } from 'react';
-import { ImageIcon } from 'lucide-react';
 
 export const Logo: React.FC<{ size?: 'sm' | 'md' | 'lg' | 'xl' }> = ({ size = 'md' }) => {
   const [hasError, setHasError] = useState(false);
 
-  // Width definitions for different contexts
-  const containerWidth = {
-    sm: 'w-36', // Sidebar
-    md: 'w-48',
-    lg: 'w-72', // Login/Register
+  // Configuraciones de ancho ajustadas para el logo horizontal "RETO 33"
+  const containerWidths = {
+    sm: 'w-36',   // Sidebar / Header (Aumentado para legibilidad en pequeño)
+    md: 'w-56',
+    lg: 'w-80',   // Pantallas de Login/Registro (Grande e impactante)
     xl: 'w-96'
   };
 
+  if (hasError) {
+    return (
+      <div className={`flex items-center justify-center ${containerWidths[size]} select-none mx-auto`}>
+        <span className="font-black text-reto-navy text-2xl tracking-tighter">RETO 33</span>
+      </div>
+    );
+  }
+
   return (
-    <div className={`flex items-center justify-center ${containerWidth[size]} select-none`}>
-       {!hasError ? (
-         <img 
-           src="./logo.png" 
-           alt="Reto 33" 
-           className="w-full h-auto object-contain hover:scale-105 transition-transform duration-300 drop-shadow-sm"
-           onError={(e) => {
-             console.error("Error cargando ./logo.png. Verifica que el archivo esté en la raíz del proyecto (public folder).");
-             setHasError(true);
-           }}
-         />
-       ) : (
-         // Visual fallback so you know the file is missing
-         <div className="flex flex-col items-center justify-center text-gray-400 border-2 border-dashed border-gray-200 bg-gray-50/50 rounded-lg p-2 w-full aspect-[3/1]">
-            <ImageIcon size={20} className="mb-1 opacity-50" />
-            <span className="text-[10px] font-bold text-center uppercase tracking-wider text-gray-500">
-              Falta logo.png
-            </span>
-         </div>
-       )}
+    <div className={`flex items-center justify-center ${containerWidths[size]} select-none mx-auto`}>
+       <img 
+         src="./logo.png" 
+         alt="RETO 33 Renovación Total" 
+         className="w-full h-auto object-contain transition-transform duration-300 hover:scale-105"
+         onError={() => {
+           console.warn("Imagen logo.png no encontrada. Asegúrate de poner el archivo en la carpeta pública.");
+           setHasError(true);
+         }}
+       />
     </div>
   );
 };
