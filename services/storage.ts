@@ -2,11 +2,11 @@ import { User, Survey, Prize, Winner } from "../types";
 import { INITIAL_PRIZES, INITIAL_SURVEYS } from "../constants";
 
 const STORAGE_KEYS = {
-  USERS: 'gtplay_users',
-  SURVEYS: 'gtplay_surveys',
-  PRIZES: 'gtplay_prizes',
-  WINNERS: 'gtplay_winners',
-  CURRENT_USER: 'gtplay_current_user',
+  USERS: 'reto33sd_users',
+  SURVEYS: 'reto33sd_surveys',
+  PRIZES: 'reto33sd_prizes',
+  WINNERS: 'reto33sd_winners',
+  CURRENT_USER: 'reto33sd_current_user',
 };
 
 // --- Helpers ---

@@ -331,7 +331,7 @@ const AuthView: React.FC<{ onLogin: (user: User) => void }> = ({ onLogin }) => {
               <button type="button" onClick={() => setMode('recover_email')} className="text-xs text-brand-pink font-semibold hover:underline">¿Olvidaste tu contraseña?</button>
             </div>
           </div>
-          <button type="submit" className="w-full bg-gradient-to-r from-brand-teal to-teal-600 text-white py-3 rounded-xl hover:shadow-lg transition-all font-bold transform hover:-translate-y-1">Entrar a GTPlay</button>
+          <button type="submit" className="w-full bg-gradient-to-r from-brand-teal to-teal-600 text-white py-3 rounded-xl hover:shadow-lg transition-all font-bold transform hover:-translate-y-1">Entrar a RETO33 SD</button>
         </form>
         <div className="mt-8 text-center border-t pt-4">
           <p className="text-sm text-gray-600">¿No tienes cuenta? <button onClick={() => setMode('register')} className="text-brand-blue font-bold hover:text-brand-pink transition-colors">Regístrate Gratis</button></p>
@@ -872,7 +872,7 @@ const PrivacyPolicy: React.FC = () => (
     <h1 className="text-2xl font-bold mb-4">Política de Privacidad</h1>
     <div className="prose text-sm text-gray-700">
       <p><strong>Última actualización:</strong> 2023</p>
-      <p>GTPlay Ecuador respeta su privacidad. Esta Política de Privacidad describe cómo recopilamos, usamos y protegemos su información personal.</p>
+      <p>RETO33 SD respeta su privacidad. Esta Política de Privacidad describe cómo recopilamos, usamos y protegemos su información personal.</p>
       
       <h3 className="font-bold mt-4">1. Recopilación de Información</h3>
       <p>Recopilamos información que usted proporciona al registrarse, como su nombre, correo electrónico, número de teléfono y ubicación.</p>
@@ -925,7 +925,7 @@ const AdminPanel: React.FC = () => {
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", "participantes_gtplay.csv");
+    link.setAttribute("download", "participantes_reto33sd.csv");
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -1505,7 +1505,7 @@ const App: React.FC = () => {
               <AppLogo />
             </div>
           </div>
-          <p className="text-sm text-gray-400 font-medium">© 2026 GTPlay Ecuador. Hecho con ❤️ para la juventud.</p>
+          <p className="text-sm text-gray-400 font-medium">© 2026 RETO33 SD. Hecho con ❤️ para la juventud.</p>
           <div>
             <button onClick={() => setCurrentView('privacy')} className="text-xs text-brand-blue hover:text-brand-pink font-bold uppercase tracking-widest transition-colors">Política de Privacidad</button>
           </div>
