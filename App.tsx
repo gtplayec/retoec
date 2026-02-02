@@ -105,7 +105,7 @@ const AuthLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <div className="min-h-screen bg-reto-light flex flex-col items-center justify-center p-4">
     <div className="mb-8 scale-110">
       <Link to="/" className="block hover:opacity-90 transition-opacity">
-        <img src="./logo.png" alt="Reto 33" className="w-80 h-auto mx-auto object-contain" />
+        <img src="./logo.png" alt="RETO 33" className="w-80 h-auto mx-auto object-contain" />
       </Link>
     </div>
     <div className="w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden p-8 border-t-4 border-reto-pink">
@@ -166,7 +166,7 @@ const MainLayout: React.FC<{ children: React.ReactNode; user: User | null; onLog
         <div className="h-full flex flex-col">
           <div className="p-6 flex items-center justify-center border-b border-gray-100">
             <Link to={logoLink} className="hover:opacity-90 transition-opacity">
-              <img src="./logo.png" alt="Reto 33" className="w-40 h-auto mx-auto object-contain" />
+              <img src="./logo.png" alt="RETO 33" className="w-40 h-auto mx-auto object-contain" />
             </Link>
           </div>
 
@@ -217,7 +217,7 @@ const MainLayout: React.FC<{ children: React.ReactNode; user: User | null; onLog
         <header className="bg-white shadow-sm lg:hidden sticky top-0 z-30">
           <div className="flex items-center justify-between p-4">
             <Link to={logoLink} className="hover:opacity-90 transition-opacity">
-              <img src="./logo.png" alt="Reto 33" className="w-24 h-auto object-contain" />
+              <img src="./logo.png" alt="RETO 33" className="w-24 h-auto object-contain" />
             </Link>
             <button 
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
