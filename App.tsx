@@ -11,7 +11,6 @@ import {
 
 import { User, Installer, Survey, SurveyOption, SurveyRecord } from './types';
 import { MOCK_INSTALLERS, INITIAL_PRIZES, MOCK_SURVEYS, PAST_DRAWS, ZONES } from './constants';
-import { Logo } from './components/Logo';
 import { Button } from './components/Button';
 
 // Constantes de configuración
@@ -40,7 +39,7 @@ const AuthLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <div className="min-h-screen bg-reto-light flex flex-col items-center justify-center p-4">
     <div className="mb-10">
       <Link to="/" className="block hover:opacity-90 transition-opacity">
-        <Logo size="lg" />
+        <img src="./logo.png" alt="RETO 33" className="w-80 h-auto object-contain mx-auto" />
       </Link>
     </div>
     <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden p-8 border-t-8 border-reto-pink">
@@ -75,7 +74,9 @@ const MainLayout: React.FC<{ user: User | null; onLogout: () => void }> = ({ use
       {isSidebarOpen && <div className="fixed inset-0 bg-black/50 z-40 lg:hidden backdrop-blur-sm" onClick={() => setIsSidebarOpen(false)} />}
       <aside className={`fixed lg:sticky top-0 left-0 h-screen w-72 bg-white shadow-2xl z-50 transform transition-transform duration-300 ease-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
         <div className="h-full flex flex-col">
-          <div className="p-8 border-b border-gray-100 flex justify-center"><Logo size="sm" /></div>
+          <div className="p-8 border-b border-gray-100 flex justify-center">
+            <img src="./logo.png" alt="RETO 33" className="w-40 h-auto object-contain" />
+          </div>
           <div className="p-4 flex-1 overflow-y-auto space-y-6">
             <div className="flex items-center space-x-3 p-4 bg-blue-50 rounded-2xl border border-blue-100">
               <div className="w-12 h-12 rounded-full bg-reto-navy text-white flex items-center justify-center font-black shadow-inner">
@@ -106,7 +107,7 @@ const MainLayout: React.FC<{ user: User | null; onLogout: () => void }> = ({ use
       </aside>
       <main className="flex-1 min-w-0 overflow-y-auto">
         <header className="bg-white shadow-sm lg:hidden sticky top-0 z-30 flex items-center justify-between p-4 px-6">
-          <Logo size="sm" />
+          <img src="./logo.png" alt="RETO 33" className="w-24 h-auto object-contain" />
           <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 text-reto-navy hover:bg-gray-100 rounded-xl transition-colors">
             {isSidebarOpen ? <X size={28} /> : <Menu size={28} />}
           </button>
