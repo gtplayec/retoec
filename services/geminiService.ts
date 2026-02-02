@@ -2,11 +2,18 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Survey } from "../types";
 
-// Always use named parameter for apiKey and assume process.env.API_KEY is available.
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
 export const generateWeeklySurvey = async (): Promise<Survey | null> => {
   try {
+    const apiKey = process.env.API_KEY;
+    
+    // Evitar instanciar si no hay key, previniendo errores fatales
+    if (!apiKey) {
+      console.warn("Google Gemini API Key no encontrada en process.env.API_KEY");
+      return null;
+    }
+
+    const ai = new GoogleGenAI({ apiKey });
+
     // Using gemini-3-flash-preview as per guidelines for general text tasks.
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
