@@ -8,7 +8,7 @@ import { LOCATIONS, INITIAL_PRIZES, INSTALLERS, AppLogo } from './constants';
 import { storageService } from './services/storage';
 import { 
   LogOut, User as UserIcon, Download, Trophy, 
-  Vote, Settings, Trash2, AlertTriangle, FileText, Menu, X, ArrowLeft, Star, Gift, Plus, Image as ImageIcon, Mail, CheckCircle, Loader2, KeyRound, Users, Upload, FileCheck, Sparkles, Zap, Play, Music, Gamepad2, Shield, ShieldOff, UserMinus, UserPlus, Pencil, Ticket, MousePointerClick, RefreshCw, BookOpen, GraduationCap, Wand2, Camera, ChevronRight
+  Vote, Settings, Trash2, AlertTriangle, FileText, Menu, X, ArrowLeft, Star, Gift, Plus, Image as ImageIcon, Mail, CheckCircle, Loader2, KeyRound, Users, Upload, FileCheck, Sparkles, Zap, Play, Music, Gamepad2, Shield, ShieldOff, UserMinus, UserPlus, Pencil, Ticket, MousePointerClick, RefreshCw, BookOpen, GraduationCap, Wand2, Camera, ChevronRight, Quote
 } from 'lucide-react';
 
 // --- Configuration ---
@@ -388,24 +388,27 @@ const AnimeSection: React.FC = () => {
       const base64Data = selectedImage.split(',')[1];
       const mimeType = selectedImage.substring(selectedImage.indexOf(':') + 1, selectedImage.indexOf(';'));
 
+      // FIXED: Structure contents as { parts: [...] } instead of direct array of parts
       const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash-image',
-        contents: [
-          {
-            inlineData: {
-              mimeType: mimeType,
-              data: base64Data
+        contents: {
+          parts: [
+            {
+              inlineData: {
+                mimeType: mimeType,
+                data: base64Data
+              }
+            },
+            {
+              text: `${prompt}. Keep the pose and composition similar to the original image. High quality, detailed.`
             }
-          },
-          {
-            text: `${prompt}. Keep the pose and composition similar to the original image. High quality, detailed.`
-          }
-        ],
+          ]
+        },
       });
 
       // Extract image from response
       let foundImage = false;
-      if (response.candidates && response.candidates[0].content.parts) {
+      if (response.candidates && response.candidates[0].content && response.candidates[0].content.parts) {
         for (const part of response.candidates[0].content.parts) {
           if (part.inlineData) {
             setGeneratedImage(`data:image/png;base64,${part.inlineData.data}`);
@@ -416,12 +419,19 @@ const AnimeSection: React.FC = () => {
       }
       
       if (!foundImage) {
-        alert("La IA no pudo generar la imagen. Inténtalo de nuevo.");
+        // Fallback: Check if there's text explaining why image wasn't generated (e.g. safety)
+        const textPart = response.candidates?.[0]?.content?.parts?.find(p => p.text);
+        if (textPart) {
+           alert(`La IA respondió con texto en lugar de imagen: ${textPart.text}`);
+        } else {
+           alert("La IA no pudo generar la imagen. Inténtalo de nuevo.");
+        }
       }
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error generating anime:", error);
-      alert("Hubo un error al conectar con la IA. Verifica tu conexión.");
+      // Detailed error message
+      alert(`Hubo un error al conectar con la IA: ${error.message || JSON.stringify(error)}`);
     } finally {
       setIsGenerating(false);
     }
@@ -783,7 +793,7 @@ const SurveysSection: React.FC<{ user: User, onUpdateUser: (u: User) => void }> 
                    
                    <div className="aspect-square bg-gray-100 relative group-hover:brightness-90 transition-all">
                      {opt.imageUrl ? (
-                       <img src={opt.imageUrl} alt={opt.label} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                       <img src={opt.imageUrl} alt={opt.label} loading="lazy" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
                      ) : (
                        <div className="w-full h-full flex items-center justify-center bg-gray-50 text-gray-300">
                          <ImageIcon size={48} />
@@ -903,79 +913,122 @@ const Los33Section: React.FC<{ user: User, onUpdateUser: (u: User) => void }> = 
   };
 
   return (
-    <div className="space-y-8 animate-fade-in pb-10">
-      <div className="bg-gradient-to-r from-gray-900 via-gray-800 to-brand-gold text-white p-10 rounded-3xl shadow-2xl relative overflow-hidden">
-        <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1556761175-5973dc0f32e7?auto=format&fit=crop&q=80')] opacity-20 bg-cover bg-center"></div>
-        <div className="relative z-10">
-           <h2 className="text-5xl font-black flex items-center mb-4 text-brand-gold tracking-tight">LOS 33 <Star className="ml-4 fill-current animate-pulse"/></h2>
-           <p className="text-xl text-gray-300 font-light max-w-2xl">Un círculo exclusivo de líderes y perfiles destacados que están marcando la diferencia.</p>
+    <div className="space-y-12 animate-fade-in pb-10">
+      
+      {/* Premium Hero Section */}
+      <div className="relative bg-gray-900 rounded-3xl overflow-hidden shadow-2xl">
+        <div className="absolute inset-0 bg-gradient-to-r from-brand-gold/20 to-brand-blue/40 mix-blend-overlay"></div>
+        {/* Abstract shapes */}
+        <div className="absolute -top-24 -right-24 w-64 h-64 bg-brand-gold rounded-full opacity-10 blur-3xl"></div>
+        <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-brand-blue rounded-full opacity-20 blur-3xl"></div>
+        
+        <div className="relative z-10 p-10 md:p-16 text-center">
+           <Star className="w-16 h-16 text-brand-gold mx-auto mb-4 animate-spin-slow" />
+           <h2 className="text-5xl md:text-6xl font-black text-white tracking-tight mb-4 drop-shadow-md">LOS 33</h2>
+           <p className="text-xl text-gray-300 max-w-2xl mx-auto font-light leading-relaxed">
+             Un círculo exclusivo de excelencia y liderazgo. <span className="text-brand-gold font-semibold">Perfiles destacados</span> que están transformando nuestra comunidad.
+           </p>
         </div>
       </div>
 
-      {/* Editor for Members */}
+      {/* Editor for Members (Enhanced) */}
       {user.isMemberOf33 && (
-        <div className="bg-white p-8 rounded-3xl shadow-xl border-2 border-brand-gold/30 relative overflow-hidden">
-          <div className="absolute top-0 right-0 bg-brand-gold text-black font-bold px-4 py-1 rounded-bl-xl text-xs uppercase">Acceso VIP</div>
-          <h3 className="text-2xl font-black text-gray-800 mb-6 flex items-center">
-            <Settings className="mr-3 text-brand-gold" /> Gestionar Tu Perfil
-          </h3>
-          <div className="space-y-6">
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2">Tu Presentación (Bio)</label>
-              <textarea 
-                className="w-full border-2 border-gray-200 rounded-xl p-4 h-32 focus:border-brand-gold outline-none transition"
-                placeholder="Escribe algo inspirador sobre ti..."
-                value={bio}
-                onChange={e => setBio(e.target.value)}
-              />
+        <div className="bg-white rounded-3xl shadow-xl overflow-hidden border-t-4 border-brand-gold">
+          <div className="p-8">
+            <div className="flex items-center justify-between mb-8">
+              <h3 className="text-2xl font-black text-gray-800 flex items-center">
+                <Settings className="mr-3 text-brand-gold w-6 h-6" /> Tu Perfil VIP
+              </h3>
+              <span className="bg-brand-gold text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">Miembro Activo</span>
             </div>
-            <div className="flex flex-col md:flex-row gap-6 items-start md:items-end">
-               <div className="flex-grow w-full">
-                 <label className="block text-sm font-bold text-gray-700 mb-2">Cargar Hoja de Vida (PDF)</label>
-                 <div className="flex items-center gap-4">
-                   <label className="cursor-pointer bg-gray-900 hover:bg-black text-white px-6 py-3 rounded-xl flex items-center shadow-lg transition transform hover:scale-105">
-                     <Upload size={18} className="mr-2" /> Seleccionar PDF
-                     <input type="file" accept="application/pdf" className="hidden" onChange={handlePdfUpload} />
-                   </label>
-                   {user.cvPdf && <span className="text-sm text-green-600 font-bold flex items-center bg-green-50 px-3 py-1 rounded-full"><CheckCircle size={14} className="mr-1"/> PDF Listo</span>}
+            
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+               <div className="lg:col-span-2 space-y-4">
+                 <label className="block text-sm font-bold text-gray-700 uppercase tracking-wide">Tu Biografía / Presentación</label>
+                 <div className="relative">
+                   <Quote className="absolute top-4 left-4 text-gray-200 w-8 h-8" />
+                   <textarea 
+                     className="w-full border-2 border-gray-100 rounded-2xl p-6 pl-14 h-40 focus:border-brand-gold focus:ring-0 outline-none transition text-gray-600 bg-gray-50 leading-relaxed resize-none"
+                     placeholder="Escribe una breve presentación que inspire a otros. ¿Quién eres y cuál es tu visión?"
+                     value={bio}
+                     onChange={e => setBio(e.target.value)}
+                   />
                  </div>
                </div>
-               <button onClick={saveBio} className="bg-brand-teal text-white px-8 py-3 rounded-xl font-bold hover:shadow-lg transition transform hover:scale-105 w-full md:w-auto">
-                 Publicar Cambios
-               </button>
+               
+               <div className="space-y-4 flex flex-col justify-between">
+                 <div>
+                    <label className="block text-sm font-bold text-gray-700 uppercase tracking-wide mb-2">Hoja de Vida (PDF)</label>
+                    <label className={`cursor-pointer border-2 border-dashed rounded-2xl flex flex-col items-center justify-center h-40 transition group ${user.cvPdf ? 'border-green-300 bg-green-50' : 'border-gray-300 hover:border-brand-gold hover:bg-yellow-50'}`}>
+                      {user.cvPdf ? (
+                        <>
+                          <CheckCircle className="w-10 h-10 text-green-500 mb-2" />
+                          <span className="text-green-700 font-bold text-sm">PDF Cargado Exitosamente</span>
+                          <span className="text-green-600 text-xs mt-1">Click para reemplazar</span>
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="w-10 h-10 text-gray-400 group-hover:text-brand-gold mb-2 transition" />
+                          <span className="text-gray-500 font-medium text-sm group-hover:text-gray-700">Subir Archivo PDF</span>
+                        </>
+                      )}
+                      <input type="file" accept="application/pdf" className="hidden" onChange={handlePdfUpload} />
+                    </label>
+                 </div>
+                 <button onClick={saveBio} className="w-full bg-gray-900 text-white py-4 rounded-xl font-bold hover:bg-brand-gold transition shadow-lg flex items-center justify-center">
+                   <Sparkles className="mr-2 w-5 h-5" /> Publicar Cambios
+                 </button>
+               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Grid of Members */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+      {/* Grid of Members (Redesigned) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 px-2">
         {members.map(member => (
-          <div key={member.id} className="bg-white rounded-3xl shadow-lg overflow-hidden flex flex-col hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 border border-gray-100 group">
-            <div className="h-32 bg-gradient-to-r from-gray-200 to-gray-300 relative">
-               {/* Placeholder Avatar if no image */}
-               <div className="absolute -bottom-10 left-6 h-20 w-20 bg-brand-gold rounded-2xl shadow-lg flex items-center justify-center text-white font-black text-2xl border-4 border-white">
-                 {member.firstName.charAt(0)}{member.lastName.charAt(0)}
+          <div key={member.id} className="bg-white rounded-2xl shadow-lg overflow-hidden flex flex-col hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 border border-gray-100 group relative">
+            {/* Geometric Header */}
+            <div className="h-28 bg-gray-900 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-brand-gold rounded-full opacity-20 transform translate-x-10 -translate-y-10"></div>
+                <div className="absolute bottom-0 left-0 w-24 h-24 bg-brand-blue rounded-full opacity-30 transform -translate-x-5 translate-y-5"></div>
+            </div>
+
+            {/* Avatar centered */}
+            <div className="absolute top-14 left-1/2 transform -translate-x-1/2">
+               <div className="h-24 w-24 bg-gradient-to-br from-brand-gold to-yellow-600 rounded-full p-1 shadow-lg">
+                 <div className="h-full w-full bg-white rounded-full flex items-center justify-center text-gray-800 font-black text-3xl border-4 border-white">
+                   {member.firstName.charAt(0)}{member.lastName.charAt(0)}
+                 </div>
                </div>
             </div>
-            <div className="pt-12 px-6 pb-6 flex-grow">
-               <h3 className="text-2xl font-black text-gray-800">{member.firstName} {member.lastName}</h3>
-               <p className="text-xs font-bold uppercase tracking-wide text-brand-blue mb-4">{member.zone}</p>
-               <p className="text-gray-600 text-sm leading-relaxed mb-6">
-                 {member.bio || "Este miembro aún no ha agregado su biografía."}
-               </p>
+
+            <div className="pt-16 px-8 pb-8 flex-grow text-center mt-2">
+               <h3 className="text-2xl font-black text-gray-800 mb-1">{member.firstName} {member.lastName}</h3>
+               <span className="inline-block bg-blue-50 text-brand-blue text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider mb-6">
+                 {member.zone}
+               </span>
+               
+               <div className="relative">
+                 <Quote className="absolute -top-2 left-0 w-4 h-4 text-gray-300 transform -scale-x-100" />
+                 <p className="text-gray-600 text-sm leading-relaxed italic px-4">
+                   {member.bio || "Este miembro aún no ha agregado su biografía."}
+                 </p>
+                 <Quote className="absolute -bottom-2 right-0 w-4 h-4 text-gray-300" />
+               </div>
             </div>
-            <div className="p-4 bg-gray-50 border-t mt-auto">
+
+            <div className="p-6 pt-0 mt-auto">
               {member.cvPdf ? (
                  <a 
                    href={member.cvPdf} 
                    download={`HojaVida_${member.firstName}_${member.lastName}.pdf`}
-                   className="flex items-center justify-center w-full bg-gray-900 text-white py-3 rounded-xl hover:bg-brand-pink transition font-bold shadow-md"
+                   className="flex items-center justify-center w-full bg-white border-2 border-gray-200 text-gray-700 py-3 rounded-xl hover:border-brand-gold hover:text-brand-gold transition font-bold group-hover:shadow-md"
                  >
                    <FileCheck size={18} className="mr-2" /> Descargar CV
                  </a>
               ) : (
-                <button disabled className="w-full bg-gray-200 text-gray-400 py-3 rounded-xl font-bold cursor-not-allowed flex items-center justify-center">
+                <button disabled className="w-full bg-gray-100 text-gray-400 py-3 rounded-xl font-bold cursor-not-allowed flex items-center justify-center">
                    <FileText size={18} className="mr-2" /> CV No Disponible
                 </button>
               )}
@@ -985,7 +1038,8 @@ const Los33Section: React.FC<{ user: User, onUpdateUser: (u: User) => void }> = 
         {members.length === 0 && (
           <div className="col-span-full text-center py-20 bg-gray-50 rounded-3xl border-2 border-dashed border-gray-200">
              <Users size={64} className="mx-auto text-gray-300 mb-4"/>
-             <p className="text-gray-500 font-medium">Aún no hay miembros registrados en Los 33.</p>
+             <h3 className="text-xl font-bold text-gray-500 mb-2">Espacio Disponible</h3>
+             <p className="text-gray-400">Aún no hay miembros registrados en el círculo de Los 33.</p>
           </div>
         )}
       </div>
@@ -1019,7 +1073,7 @@ const PrizesSection: React.FC<{ viewMode: 'prizes' | 'winners' }> = ({ viewMode 
                 <div key={prize.id} className="bg-white p-4 rounded-2xl shadow-lg hover:shadow-2xl transition transform hover:-translate-y-2 border border-gray-100 flex flex-col h-full">
                   <div className="h-40 rounded-xl overflow-hidden mb-4 bg-gray-100">
                     {prize.image ? (
-                      <img src={prize.image} alt={prize.name} className="w-full h-full object-cover" />
+                      <img src={prize.image} alt={prize.name} loading="lazy" className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-gray-300"><Gift size={48}/></div>
                     )}
@@ -1518,7 +1572,7 @@ const AdminPanel: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
                        {(newSurveyCat === 'Alcalde' || newSurveyCat === 'Prefecto') && (
                          <div className="flex items-center gap-2">
                            {opt.imageUrl && (
-                             <img src={opt.imageUrl} alt="Preview" className="w-10 h-10 object-cover rounded-lg border" />
+                             <img src={opt.imageUrl} alt="Preview" loading="lazy" className="w-10 h-10 object-cover rounded-lg border" />
                            )}
                            <input 
                              type="file" 
@@ -1608,7 +1662,7 @@ const AdminPanel: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
                       onChange={handlePrizeImageUpload}
                       className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-brand-gold file:text-white hover:file:bg-yellow-600"
                    />
-                   {newPrizeImage && <img src={newPrizeImage} alt="Preview" className="h-32 w-full object-cover mt-4 rounded-lg shadow-sm" />}
+                   {newPrizeImage && <img src={newPrizeImage} alt="Preview" loading="lazy" className="h-32 w-full object-cover mt-4 rounded-lg shadow-sm" />}
                  </div>
                  <button onClick={addPrize} className="bg-brand-blue text-white px-8 py-3 rounded-xl font-bold flex items-center justify-center hover:bg-blue-800 transition w-full">
                    <Plus size={20} className="mr-2" /> Guardar Premio
@@ -1622,7 +1676,7 @@ const AdminPanel: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
                   <div>
                     <div className="h-40 bg-gray-100 rounded-xl mb-3 overflow-hidden">
                         {p.image ? (
-                        <img src={p.image} alt={p.name} className="w-full h-full object-cover" />
+                        <img src={p.image} alt={p.name} loading="lazy" className="w-full h-full object-cover" />
                         ) : (
                         <div className="w-full h-full flex items-center justify-center text-gray-300"><ImageIcon /></div>
                         )}
