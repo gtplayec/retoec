@@ -57,4 +57,29 @@ export const storageService = {
   
   getWinners: (): Winner[] => get(STORAGE_KEYS.WINNERS, []),
   saveWinners: (winners: Winner[]) => set(STORAGE_KEYS.WINNERS, winners),
+
+  // Reset logic for Admin
+  resetWeeklyDraw: () => {
+    const users = get<User[]>(STORAGE_KEYS.USERS, []);
+    // Reset tickets and survey history for ALL users so they can vote again next week
+    const resetUsers = users.map(u => ({
+      ...u,
+      tickets: [],
+      surveyHistory: []
+    }));
+    set(STORAGE_KEYS.USERS, resetUsers);
+    
+    // Also reset survey votes visually (optional, but cleaner for a new week)
+    // OR keep votes and just allow users to vote again? 
+    // Usually a weekly raffle implies new voting. Let's reset votes too to be clean.
+    // actually, let's keep the surveys themselves but reset the vote counts in them if we wanted to
+    // But for now, let's just reset the USER participation so they can vote again on existing surveys.
+    
+    // Check if current user is logged in and update them
+    const currentUser = storageService.getCurrentUser();
+    if (currentUser) {
+      const updatedCurrent = resetUsers.find(u => u.id === currentUser.id);
+      if (updatedCurrent) set(STORAGE_KEYS.CURRENT_USER, updatedCurrent);
+    }
+  }
 };

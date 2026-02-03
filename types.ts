@@ -13,7 +13,7 @@ export interface User {
   role: 'user' | 'admin';
   downloadHistory: string[];
   surveyHistory: string[]; // IDs of surveys taken
-  ticketNumber?: number; // Last ticket number generated
+  tickets: number[]; // List of accumulated ticket numbers
   
   // Fields for "Los 33"
   isMemberOf33?: boolean;
