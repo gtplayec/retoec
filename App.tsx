@@ -954,7 +954,7 @@ const Los33Section: React.FC<{ user: User, onUpdateUser: (u: User) => void }> = 
            <Star className="w-16 h-16 text-brand-gold mx-auto mb-4 animate-spin-slow" />
            <h2 className="text-5xl md:text-6xl font-black text-white tracking-tight mb-4 drop-shadow-md">LOS 33</h2>
            <p className="text-xl text-gray-300 max-w-2xl mx-auto font-light leading-relaxed">
-             Un círculo exclusivo de excelencia y liderazgo. <span className="text-brand-gold font-semibold">Perfiles destacados</span> que están transformando nuestra comunidad.
+             Lugar exclusivo para la excelencia y el liderazgo. <span className="text-brand-gold font-semibold">Perfiles destacados de lideres y lideresas</span> que están transformando nuestra comunidad.
            </p>
         </div>
       </div>
