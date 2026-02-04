@@ -1,4 +1,4 @@
-import { User, Survey, Prize, Winner } from "../types";
+import { User, Survey, Prize, Winner, Post } from "../types";
 import { INITIAL_PRIZES, INITIAL_SURVEYS } from "../constants";
 
 const STORAGE_KEYS = {
@@ -6,8 +6,36 @@ const STORAGE_KEYS = {
   SURVEYS: 'reto33sd_surveys',
   PRIZES: 'reto33sd_prizes',
   WINNERS: 'reto33sd_winners',
+  POSTS: 'reto33sd_posts',
   CURRENT_USER: 'reto33sd_current_user',
 };
+
+// Initial Dummy Posts
+const INITIAL_POSTS: Post[] = [
+  {
+    id: 'post-1',
+    userId: 'admin',
+    userName: 'RETO Oficial',
+    userAvatar: '', // Admin usually has a logo or empty
+    content: '¡Bienvenidos al nuevo Muro de la comunidad! Aquí podrán compartir sus ideas y opiniones con todo Santo Domingo. 🚀',
+    likes: ['test', 'user2', 'user3'],
+    shares: 12,
+    comments: [
+      { id: 'c1', userId: 'test', userName: 'Usuario Demo', content: '¡Está genial la nueva actualización!', date: new Date().toISOString() }
+    ],
+    date: new Date(Date.now() - 86400000).toISOString()
+  },
+  {
+    id: 'post-2',
+    userId: 'user-x',
+    userName: 'Carlos Andrade',
+    content: '¿Alguien sabe cuándo empiezan las obras en la Vía Aventura? Necesitamos info urgente.',
+    likes: [],
+    shares: 0,
+    comments: [],
+    date: new Date().toISOString()
+  }
+];
 
 // --- Helpers ---
 const get = <T>(key: string, defaultVal: T): T => {
@@ -58,10 +86,12 @@ export const storageService = {
   getWinners: (): Winner[] => get(STORAGE_KEYS.WINNERS, []),
   saveWinners: (winners: Winner[]) => set(STORAGE_KEYS.WINNERS, winners),
 
+  getPosts: (): Post[] => get(STORAGE_KEYS.POSTS, INITIAL_POSTS),
+  savePosts: (posts: Post[]) => set(STORAGE_KEYS.POSTS, posts),
+
   // Reset logic for Admin
   resetWeeklyDraw: () => {
     const users = get<User[]>(STORAGE_KEYS.USERS, []);
-    // Reset tickets and survey history for ALL users so they can vote again next week
     const resetUsers = users.map(u => ({
       ...u,
       tickets: [],
@@ -69,13 +99,6 @@ export const storageService = {
     }));
     set(STORAGE_KEYS.USERS, resetUsers);
     
-    // Also reset survey votes visually (optional, but cleaner for a new week)
-    // OR keep votes and just allow users to vote again? 
-    // Usually a weekly raffle implies new voting. Let's reset votes too to be clean.
-    // actually, let's keep the surveys themselves but reset the vote counts in them if we wanted to
-    // But for now, let's just reset the USER participation so they can vote again on existing surveys.
-    
-    // Check if current user is logged in and update them
     const currentUser = storageService.getCurrentUser();
     if (currentUser) {
       const updatedCurrent = resetUsers.find(u => u.id === currentUser.id);
