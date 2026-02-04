@@ -8,7 +8,7 @@ import { LOCATIONS, INITIAL_PRIZES, INSTALLERS, AppLogo, DEMO_MEMBERS_33 } from 
 import { storageService } from './services/storage';
 import { 
   LogOut, User as UserIcon, Download, Trophy, 
-  Vote, Settings, Trash2, AlertTriangle, FileText, Menu, X, ArrowLeft, Star, Gift, Plus, Image as ImageIcon, Mail, CheckCircle, Loader2, KeyRound, Users, Upload, FileCheck, Sparkles, Zap, Play, Music, Gamepad2, Shield, ShieldOff, UserMinus, UserPlus, Pencil, Ticket, MousePointerClick, RefreshCw, BookOpen, GraduationCap, Wand2, Camera, ChevronRight, Quote, Key, BarChart3, Briefcase, Heart, Building2
+  Vote, Settings, Trash2, AlertTriangle, FileText, Menu, X, ArrowLeft, Star, Gift, Plus, Image as ImageIcon, Mail, CheckCircle, Loader2, KeyRound, Users, Upload, FileCheck, Sparkles, Zap, Play, Music, Gamepad2, Shield, ShieldOff, UserMinus, UserPlus, Pencil, Ticket, MousePointerClick, RefreshCw, BookOpen, GraduationCap, Wand2, Camera, ChevronRight, Quote, Key, BarChart3, Briefcase, Heart, Building2, LayoutGrid, Home, MoreHorizontal
 } from 'lucide-react';
 
 // --- Configuration ---
@@ -67,12 +67,13 @@ const AuthView: React.FC<{ onLogin: (user: User) => void }> = ({ onLogin }) => {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    // Admin Check
-    if (email === 'gtplayec@gmail.com' && password === 'RETO2026@') {
+    
+    // 1. Admin Check (MASTER)
+    if (email === 'gtplayec@gmail.com' && password === 'RETO2026') {
       const adminUser: User = {
         id: 'admin-main',
         firstName: 'Admin',
-        lastName: 'Principal',
+        lastName: 'Master',
         age: 30,
         phone: '0000000000',
         zone: 'Santo Domingo',
@@ -86,7 +87,31 @@ const AuthView: React.FC<{ onLogin: (user: User) => void }> = ({ onLogin }) => {
       onLogin(adminUser);
       return;
     }
+
+    // 2. Test User Check
+    if (email === 'retoec@gmail.com' && password === 'RETO123') {
+      const testUser: User = {
+        id: 'test-user-demo',
+        firstName: 'Usuario',
+        lastName: 'Pruebas',
+        age: 25,
+        phone: '0999999999',
+        zone: 'Santo Domingo',
+        sector: 'Zaracay',
+        email: email,
+        role: 'user',
+        downloadHistory: ['App Demo 1'],
+        surveyHistory: [],
+        tickets: [12345, 67890]
+      };
+      // We save/update it in storage to persist session if needed, 
+      // but strictly handleLogin usually just sets state in App.
+      // For consistency with normal flow, we can let onLogin handle state
+      onLogin(testUser);
+      return;
+    }
     
+    // 3. Normal User Check
     const users = storageService.getUsers();
     const foundUser = users.find(u => u.email === email);
     
@@ -355,6 +380,126 @@ const AuthView: React.FC<{ onLogin: (user: User) => void }> = ({ onLogin }) => {
 
 // 2. Dashboard Sections
 
+const HomeSection: React.FC<{ user: User, onNavigate: (view: string) => void }> = ({ user, onNavigate }) => {
+  return (
+    <div className="animate-fade-in space-y-6 pb-24">
+      {/* Header Compacto */}
+      <div className="flex justify-between items-center mb-2">
+        <div>
+          <h2 className="text-2xl font-black text-gray-800">Hola, {user.firstName}! 👋</h2>
+          <p className="text-gray-500 text-sm font-medium">¿Qué quieres hacer hoy?</p>
+        </div>
+        <div className="bg-white p-2 rounded-2xl shadow-sm border border-gray-100 flex items-center">
+            <Ticket className="text-brand-yellow mr-2 w-5 h-5" />
+            <span className="font-black text-gray-800">{user.tickets.length}</span>
+        </div>
+      </div>
+
+      {/* Bento Grid Layout - Juvenil y Organizado */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        
+        {/* Card 1: Votar (Destacado) */}
+        <div 
+          onClick={() => onNavigate('surveys')}
+          className="col-span-2 row-span-2 bg-gradient-to-br from-brand-blue to-indigo-600 rounded-[2rem] p-6 text-white relative overflow-hidden shadow-lg cursor-pointer transform transition hover:scale-[1.02] active:scale-95"
+        >
+          <div className="absolute top-0 right-0 p-4 opacity-20">
+            <Vote size={120} />
+          </div>
+          <div className="relative z-10 h-full flex flex-col justify-between">
+            <div className="bg-white/20 backdrop-blur-md w-12 h-12 rounded-full flex items-center justify-center">
+              <Vote size={24} />
+            </div>
+            <div>
+              <h3 className="text-3xl font-black mb-1">Votar</h3>
+              <p className="text-indigo-100 text-sm font-medium leading-tight">Participa y gana tickets semanales.</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Card 2: Premios */}
+        <div 
+          onClick={() => onNavigate('prizes')}
+          className="col-span-2 md:col-span-2 bg-white rounded-[2rem] p-6 border border-gray-100 shadow-sm relative overflow-hidden cursor-pointer group hover:border-brand-pink hover:shadow-md transition-all"
+        >
+           <div className="flex justify-between items-start">
+             <div>
+               <h3 className="text-xl font-black text-gray-800">Premios</h3>
+               <p className="text-gray-400 text-xs font-bold">CATÁLOGO</p>
+             </div>
+             <div className="bg-pink-50 text-brand-pink p-3 rounded-2xl group-hover:bg-brand-pink group-hover:text-white transition-colors">
+               <Gift size={24} />
+             </div>
+           </div>
+           <div className="mt-4 flex -space-x-2 overflow-hidden">
+             {INITIAL_PRIZES.slice(0, 3).map((prize, i) => (
+                <img key={i} className="inline-block h-8 w-8 rounded-full ring-2 ring-white object-cover" src={prize.image} alt=""/>
+             ))}
+             <div className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-500 ring-2 ring-white">+5</div>
+           </div>
+        </div>
+
+        {/* Card 3: Descargas */}
+        <div 
+          onClick={() => onNavigate('installers')}
+          className="bg-gradient-to-br from-teal-400 to-brand-teal rounded-[2rem] p-5 text-white shadow-md cursor-pointer hover:shadow-lg transition-all relative overflow-hidden"
+        >
+          <Download className="absolute -bottom-4 -right-4 text-white opacity-20 w-24 h-24" />
+          <div className="relative z-10">
+            <h3 className="font-bold text-lg leading-none mb-1">Apps</h3>
+            <p className="text-teal-100 text-xs">Gratis</p>
+          </div>
+        </div>
+
+        {/* Card 4: Anime */}
+        <div 
+          onClick={() => onNavigate('anime')}
+          className="bg-gradient-to-br from-violet-500 to-purple-600 rounded-[2rem] p-5 text-white shadow-md cursor-pointer hover:shadow-lg transition-all relative overflow-hidden"
+        >
+          <Wand2 className="absolute -bottom-4 -right-4 text-white opacity-20 w-24 h-24" />
+          <div className="relative z-10">
+            <h3 className="font-bold text-lg leading-none mb-1">Anime</h3>
+            <p className="text-purple-100 text-xs">AI Avatar</p>
+          </div>
+        </div>
+
+        {/* Card 5: Los 33 (Wide) */}
+        <div 
+          onClick={() => onNavigate('los33')}
+          className="col-span-2 bg-gray-900 rounded-[2rem] p-6 text-white shadow-lg cursor-pointer hover:scale-[1.01] transition-all relative overflow-hidden"
+        >
+          <div className="absolute top-0 right-0 w-32 h-32 bg-brand-gold rounded-full blur-3xl opacity-20 transform translate-x-10 -translate-y-10"></div>
+          <div className="flex items-center justify-between relative z-10">
+             <div className="flex items-center">
+               <div className="bg-brand-gold/20 p-3 rounded-full mr-4 text-brand-gold">
+                 <Star size={24} fill="currentColor"/>
+               </div>
+               <div>
+                 <h3 className="font-black text-xl">Los 33</h3>
+                 <p className="text-gray-400 text-xs">Líderes de la comunidad</p>
+               </div>
+             </div>
+             <ChevronRight className="text-gray-500" />
+          </div>
+        </div>
+
+        {/* Card 6: Ganadores */}
+        <div 
+          onClick={() => onNavigate('winners')}
+          className="col-span-2 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-[2rem] p-6 text-white shadow-lg cursor-pointer relative overflow-hidden flex items-center justify-between"
+        >
+           <div>
+             <h3 className="font-black text-xl">Ganadores</h3>
+             <p className="text-yellow-100 text-xs">Sorteos semanales</p>
+           </div>
+           <Trophy size={32} className="text-white drop-shadow-md" />
+        </div>
+
+      </div>
+    </div>
+  );
+};
+
 const AnimeSection: React.FC = () => {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
@@ -436,7 +581,7 @@ const AnimeSection: React.FC = () => {
   };
 
   return (
-    <div className="space-y-8 animate-fade-in pb-10">
+    <div className="space-y-8 animate-fade-in pb-24">
       <div className="bg-gradient-to-r from-purple-600 to-pink-500 rounded-2xl p-8 text-white shadow-xl relative overflow-hidden">
         <div className="absolute top-0 right-0 opacity-20 transform translate-x-10 -translate-y-10">
           <Wand2 size={200} />
@@ -537,7 +682,7 @@ const ProfileSection: React.FC<{ user: User, onUpdate: (u: User) => void, onLogo
   };
 
   return (
-    <div className="bg-white p-6 rounded-2xl shadow-xl border border-gray-100">
+    <div className="bg-white p-6 rounded-2xl shadow-xl border border-gray-100 pb-24">
       <h2 className="text-3xl font-black text-brand-blue mb-6 flex items-center"><UserIcon className="mr-3 w-8 h-8" /> Mi Perfil</h2>
       
       {isEditing ? (
@@ -641,7 +786,7 @@ const InstallersSection: React.FC<{ user: User, onUpdateUser: (u: User) => void 
   };
 
   return (
-    <div className="space-y-8 animate-fade-in pb-10">
+    <div className="space-y-8 animate-fade-in pb-24">
       <div className="bg-gradient-to-r from-brand-teal to-blue-600 rounded-2xl p-8 text-white shadow-xl relative overflow-hidden">
         <div className="absolute top-0 right-0 opacity-10 transform translate-x-10 -translate-y-10">
           <Download size={200} />
@@ -747,7 +892,7 @@ const SurveysSection: React.FC<{ user: User, onUpdateUser: (u: User) => void }> 
   const filteredSurveys = surveys.filter(s => s.category === activeTab && s.active);
 
   return (
-    <div className="space-y-8 animate-fade-in pb-10">
+    <div className="space-y-8 animate-fade-in pb-24">
       <div className="bg-gradient-to-r from-brand-blue to-purple-600 rounded-2xl p-8 text-white shadow-xl relative overflow-hidden">
          <div className="absolute top-0 right-0 opacity-10 transform translate-x-10 -translate-y-10">
           <Vote size={200} />
@@ -941,7 +1086,7 @@ const Los33Section: React.FC<{ user: User, onUpdateUser: (u: User) => void }> = 
   };
 
   return (
-    <div className="space-y-12 animate-fade-in pb-10">
+    <div className="space-y-12 animate-fade-in pb-24">
       
       {/* Premium Hero Section */}
       <div className="relative bg-gray-900 rounded-3xl overflow-hidden shadow-2xl">
@@ -1088,7 +1233,7 @@ const PrizesSection: React.FC<{ viewMode: 'prizes' | 'winners' }> = ({ viewMode 
   }, []);
 
   return (
-    <div className="space-y-8 animate-fade-in pb-10">
+    <div className="space-y-8 animate-fade-in pb-24">
       <div className={`rounded-2xl p-8 text-white shadow-xl relative overflow-hidden ${viewMode === 'prizes' ? 'bg-gradient-to-r from-pink-500 to-rose-600' : 'bg-gradient-to-r from-yellow-500 to-amber-600'}`}>
          <div className="absolute top-0 right-0 opacity-10 transform translate-x-10 -translate-y-10">
           <Gift size={200} />
@@ -1156,7 +1301,7 @@ const PrizesSection: React.FC<{ viewMode: 'prizes' | 'winners' }> = ({ viewMode 
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
-  const [currentView, setCurrentView] = useState('surveys');
+  const [currentView, setCurrentView] = useState('home');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -1174,6 +1319,7 @@ const App: React.FC = () => {
   const handleLogout = () => {
     setUser(null);
     storageService.setCurrentUser(null);
+    setCurrentView('home');
   };
 
   const handleUpdateUser = (updatedUser: User) => {
@@ -1186,6 +1332,7 @@ const App: React.FC = () => {
 
   const renderContent = () => {
     switch (currentView) {
+      case 'home': return <HomeSection user={user} onNavigate={setCurrentView} />;
       case 'profile': return <ProfileSection user={user} onUpdate={handleUpdateUser} onLogout={handleLogout} />;
       case 'surveys': return <SurveysSection user={user} onUpdateUser={handleUpdateUser} />;
       case 'installers': return <InstallersSection user={user} onUpdateUser={handleUpdateUser} />;
@@ -1193,29 +1340,35 @@ const App: React.FC = () => {
       case 'los33': return <Los33Section user={user} onUpdateUser={handleUpdateUser} />;
       case 'prizes': return <PrizesSection viewMode="prizes" />;
       case 'winners': return <PrizesSection viewMode="winners" />;
-      default: return <SurveysSection user={user} onUpdateUser={handleUpdateUser} />;
+      default: return <HomeSection user={user} onNavigate={setCurrentView} />;
     }
   };
 
   const navItems = [
-    { id: 'surveys', label: 'Encuestas', icon: <Vote size={20} /> },
+    { id: 'home', label: 'Inicio', icon: <Home size={20} /> },
+    { id: 'surveys', label: 'Votar', icon: <Vote size={20} /> },
     { id: 'prizes', label: 'Premios', icon: <Gift size={20} /> },
-    { id: 'winners', label: 'Ganadores', icon: <Trophy size={20} /> },
     { id: 'installers', label: 'Descargas', icon: <Download size={20} /> },
-    { id: 'anime', label: 'Modo Anime', icon: <Wand2 size={20} /> },
+    // Only used for mobile menu expansion
     { id: 'los33', label: 'Los 33', icon: <Star size={20} /> },
-    { id: 'profile', label: 'Mi Perfil', icon: <UserIcon size={20} /> },
+    { id: 'anime', label: 'Anime', icon: <Wand2 size={20} /> },
+    { id: 'profile', label: 'Perfil', icon: <UserIcon size={20} /> },
+    { id: 'winners', label: 'Ganadores', icon: <Trophy size={20} /> },
   ];
+
+  const mainMobileNav = navItems.slice(0, 4);
 
   return (
     <div className="min-h-screen bg-gray-50 flex font-sans text-gray-900">
+      
+      {/* Desktop Sidebar */}
       <aside className="hidden lg:flex flex-col w-72 bg-white border-r border-gray-200 h-screen fixed top-0 left-0 z-50">
         <div className="p-8 flex justify-center">
            <AppLogo />
         </div>
         
         <nav className="flex-1 px-4 space-y-2 overflow-y-auto">
-          {navItems.map(item => (
+          {navItems.filter(i => i.id !== 'more').map(item => (
             <button
               key={item.id}
               onClick={() => setCurrentView(item.id)}
@@ -1234,36 +1387,63 @@ const App: React.FC = () => {
         </div>
       </aside>
 
-      <div className="lg:hidden fixed top-0 left-0 right-0 bg-white/90 backdrop-blur-md z-40 border-b border-gray-200 px-6 py-4 flex items-center justify-between shadow-sm">
-        <div className="h-10"><AppLogo /></div>
-        <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="text-gray-800 p-2 rounded-lg hover:bg-gray-100">
-          {mobileMenuOpen ? <X size={28} /> : <Menu size={28} />}
-        </button>
+      {/* Mobile Top Bar (Logo Only) */}
+      <div className="lg:hidden fixed top-0 left-0 right-0 bg-white/90 backdrop-blur-md z-40 border-b border-gray-200 px-6 py-3 flex items-center justify-center shadow-sm">
+        <div className="h-8"><AppLogo /></div>
       </div>
 
-      {mobileMenuOpen && (
-        <div className="lg:hidden fixed inset-0 bg-white z-30 pt-24 px-6 pb-6 overflow-y-auto animate-fade-in">
-          <nav className="space-y-3">
-            {navItems.map(item => (
-              <button
-                key={item.id}
-                onClick={() => { setCurrentView(item.id); setMobileMenuOpen(false); }}
-                className={`w-full flex items-center px-6 py-5 rounded-2xl transition-all font-bold text-lg ${currentView === item.id ? 'bg-brand-blue text-white shadow-lg' : 'bg-gray-50 text-gray-600'}`}
-              >
-                <span className="mr-4">{item.icon}</span>
-                {item.label}
-              </button>
-            ))}
-             <button onClick={handleLogout} className="w-full flex items-center px-6 py-5 rounded-2xl text-red-500 bg-red-50 font-bold text-lg mt-6">
-               <LogOut className="mr-4" size={24} /> Cerrar Sesión
+      {/* Mobile Bottom Navigation Bar */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50 pb-safe">
+        <div className="flex justify-around items-center p-2">
+           {mainMobileNav.map(item => (
+             <button 
+               key={item.id}
+               onClick={() => { setCurrentView(item.id); setMobileMenuOpen(false); }}
+               className={`flex flex-col items-center justify-center p-2 rounded-xl w-16 transition-all ${currentView === item.id ? 'text-brand-blue bg-blue-50' : 'text-gray-400'}`}
+             >
+               <div className={`${currentView === item.id ? 'transform scale-110' : ''}`}>{item.icon}</div>
+               <span className="text-[10px] font-bold mt-1">{item.label}</span>
              </button>
-          </nav>
+           ))}
+           {/* More Button */}
+           <button 
+             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+             className={`flex flex-col items-center justify-center p-2 rounded-xl w-16 transition-all ${mobileMenuOpen ? 'text-brand-pink bg-pink-50' : 'text-gray-400'}`}
+           >
+             <MoreHorizontal size={20} />
+             <span className="text-[10px] font-bold mt-1">Más</span>
+           </button>
+        </div>
+      </div>
+
+      {/* Mobile More Menu (Overlay) */}
+      {mobileMenuOpen && (
+        <div className="lg:hidden fixed inset-0 bg-black/50 z-40 flex flex-col justify-end pb-24 animate-fade-in" onClick={() => setMobileMenuOpen(false)}>
+           <div className="bg-white rounded-t-3xl p-6 shadow-2xl space-y-2" onClick={e => e.stopPropagation()}>
+              <h3 className="text-gray-400 font-bold text-xs uppercase tracking-wider mb-4">Opciones Adicionales</h3>
+              {navItems.slice(4).map(item => (
+                <button
+                  key={item.id}
+                  onClick={() => { setCurrentView(item.id); setMobileMenuOpen(false); }}
+                  className="w-full flex items-center p-4 rounded-2xl hover:bg-gray-50 font-bold text-gray-700"
+                >
+                  <span className="bg-gray-100 p-2 rounded-full mr-4 text-brand-blue">{item.icon}</span>
+                  {item.label}
+                </button>
+              ))}
+              <div className="h-px bg-gray-100 my-2"></div>
+              <button onClick={handleLogout} className="w-full flex items-center p-4 rounded-2xl hover:bg-red-50 font-bold text-red-500">
+                <span className="bg-red-50 p-2 rounded-full mr-4"><LogOut size={20} /></span>
+                Cerrar Sesión
+              </button>
+           </div>
         </div>
       )}
 
-      <main className="flex-1 lg:ml-72 p-6 lg:p-10 pt-24 lg:pt-10 overflow-x-hidden">
+      <main className="flex-1 lg:ml-72 p-4 lg:p-10 pt-20 lg:pt-10 overflow-x-hidden pb-24 lg:pb-10">
         <div className="max-w-6xl mx-auto">
-          <header className="flex justify-between items-center mb-8">
+          {/* Desktop Header */}
+          <header className="hidden lg:flex justify-between items-center mb-8">
              <div>
                <h1 className="text-3xl font-black text-gray-900">{navItems.find(i => i.id === currentView)?.label}</h1>
                <p className="text-gray-500 font-medium">Bienvenido, {user.firstName}</p>
